@@ -1,0 +1,68 @@
+{
+   "mempool": {
+      "tAyvIT2fN9wlN4/8nOtwCW5O06vXQQ2GFslPnAxNCNY=&5": [
+         {
+            "meterNumber": 5,
+            "signature": "a97a9mUeFuS2HPhzWlJXZd0ngaWoZV8Y2Rr6GYThgWgpqbl4qqKyxmxrQ5YoGSAEkVOc98TY3XV+Upxt9P1xAA==",
+            "energy": 0.016046,
+            "nonce": 3041
+         },
+         {
+            "meterNumber": 5,
+            "signature": "GpTveb6NBPV1SV5FHtJqpPw6Qo8EAGUyarC/hJlto+mfLTvB72rQVZ3hXN2vbW7OAtcNVQG2LSKApJSFkmjCDQ==",
+            "energy": 0.007831,
+            "nonce": 3042
+         },
+         {
+            "meterNumber": 5,
+            "signature": "0YTAJMM9O3PziMQGXyP7l5iSUAatbQwv/8a6QSWKEsTn9HFIj9dZy5/1ipNzLO/8b+7GJxo31iWLTbiJK8a+DQ==",
+            "energy": 0.006769,
+            "nonce": 3043
+         },
+         {
+            "meterNumber": 5,
+            "signature": "tmdldhfqFRYWCuvOOqpfhmlDMwsd/FRBR1ky/fUT1DBHYp0pCtV2kgv+VXKK9rIQvd1F7WmcUnxz/ri8jAPhDQ==",
+            "energy": 0.032532,
+            "nonce": 3044
+         },
+         {
+            "meterNumber": 5,
+            "signature": "iUY0OecUQMZeYW0f/ydApxIEubgSGFs3OEuxR9fhz3d8LDrptthiiBERBGvh9ZGhAXrzQ+p28xZ+DjVgWwUlAA==",
+            "energy": 0.006977,
+            "nonce": 3045
+         },
+         {
+            "meterNumber": 5,
+            "signature": "wGhXIoVlURIZ7rQYJqY4QhpC6MHL1yVnhBy3pJeNx3jXZDsZY7LFhFSiTqzSciadj0KrQPzYh+a0c2jEJWDIBg==",
+            "energy": 0.00745,
+            "nonce": 3046
+         },
+         {
+            "meterNumber": 5,
+            "signature": "BiYv0ICFBQAxNvEvAscmu2tCtKSBHOiMqd6qgWxfjYnswanhB3IeUOQc+SN9hAy1/uCkbcQH+paLhY6+uYIkBQ==",
+            "energy": 0.0086,
+            "nonce": 3047
+         },
+         {
+            "meterNumber": 5,
+            "signature": "oy2bqW3dj8CBVKys42nWv4xRLaFjrhZr+2iYmLDxcp8c4+caQYLoj5SwSMHbSXyucLLF9BLTWf+pxs2Mj3I9Ag==",
+            "energy": 0.00832,
+            "nonce": 3048
+         },
+         {
+            "meterNumber": 5,
+            "signature": "R2ZUo94udSKVeOntFf8DCI8Mn57i9rKWShIvDmy3yU+VOYE8Fr30Bu02L2X4ffsUhKdlHBT475tzor9f3svzCQ==",
+            "energy": 0.008461,
+            "nonce": 3049
+         },
+         {
+            "meterNumber": 5,
+            "signature": "LwPVZyFmuUkseYp/csNVQ2lfl0liGJrhT0H6LMjYPGRLR0WU6oWfrJceCKxwF/qlogchW/wIrkoDY/HSDkGUCQ==",
+            "energy": 0.008375,
+            "nonce": 3050
+         }
+      ]
+   },
+   "previousNonces": [324, 4375, 4325, 2434, 734, 3040],
+   "previousBalances": [1.3200, 43.5434, 89.4333, 32.434, 2.43, 0.954]
+}

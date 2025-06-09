@@ -1,0 +1,10 @@
+[package]
+version = "0.1.0"
+name = "energy-tracker-program"
+edition = "2021"
+
+[dependencies]
+alloy-sol-types = { workspace = true }
+serde = { workspace = true }
+sp1-zkvm = { version = "5.0.0", features = ["embedded"] }
+energy-tracker-lib = { path = "../lib" }
