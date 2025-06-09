@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublicValuesStruct {
+    pub previous_balances: Vec<f32>,
+    pub previous_nonces: Vec<i32>,
     pub new_balances: Vec<f32>,
     pub new_nonces: Vec<i32>,
 }
