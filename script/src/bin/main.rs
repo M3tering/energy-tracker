@@ -14,7 +14,7 @@ use std::{fs::File, io::BufReader};
 
 use alloy_sol_types::SolType;
 use clap::Parser;
-use energy_tracker_lib::Payload;
+use energy_tracker_lib::{Payload, PublicValuesStruct};
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 
 use base64::{Engine as _, alphabet, engine::{self, general_purpose}};
@@ -58,25 +58,13 @@ fn main() {
     // let previous_nonces = &payload.previous_nonces;
     // let previous_balances = &payload.previous_balances;
 
-    // let decoded_nonces = engine::general_purpose::URL_SAFE_NO_PAD.decode(previous_nonces).unwrap();
-    // let values  = m3ter_payload.previous_nonces.len();
-    // loop {
-    //     if after_strip.len() / 64 >= 1 {
-    //         let split = data_to_bytes.split_off(32);
-    //         values.push(hex::encode(data_to_bytes.clone()));
-    //         data_to_bytes = split;
-    //     } else { break; }
-    // }
-
-    // assert_eq!(hex_input, &hex::encode(decoded_nonces));
-
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
     stdin.write(&payload);
 
     if args.execute {
         // Execute the program
-        let (output, report) = client.execute(ENERGY_TRACKER_ELF, &stdin).run().unwrap();
+        let (mut output, report) = client.execute(ENERGY_TRACKER_ELF, &stdin).run().unwrap();
         println!("Program executed successfully.");
 
         // Read the output.
@@ -84,7 +72,7 @@ fn main() {
         // let PublicValuesStruct { n, a, b } = decoded;
         // println!("n: {}", n);
         // println!("a: {}", a);
-        println!("output: {}", output.raw());
+        println!("output: {:?}", bincode::deserialize::<PublicValuesStruct>(output.as_slice()).unwrap());
 
         // let (expected_a, expected_b) = fibonacci_lib::fibonacci(n);
         // assert_eq!(a, expected_a);

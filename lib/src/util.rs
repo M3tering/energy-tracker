@@ -15,10 +15,10 @@ pub fn validate_signature(message_hash: Vec<u8>, public_key: &str, signature_str
     }
 }
 
-pub fn _validate_unique_nonce(nonce: u128) -> bool {
-    // Check if the nonce is unique (greater than 0)
-    nonce > 0
-}
+// pub fn _validate_unique_nonce(nonce: u128) -> bool {
+//     // Check if the nonce is unique (greater than 0)
+//     nonce > 0
+// }
 
 fn build_signature(raw_signature: &str) -> Option<Signature> {
     let signature = Signature::from_slice(&decode_hex(raw_signature));

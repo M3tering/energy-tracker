@@ -79,13 +79,13 @@ pub fn track_energy(m3ter: M3ter, m3ter_payloads: &[M3terPayload], start_nonce: 
     let mut energy_sum = 0.0;
     let mut latest_nonce = start_nonce;
     for payload in m3ter_payloads.iter() {
-        if latest_nonce + 1 != payload.nonce || payload.nonce < latest_nonce {
+        if latest_nonce + 1 != payload.nonce {
             println!("Invalid nonce: {} < {} for m3ter_id {}", &payload.nonce, &latest_nonce, &m3ter.m3ter_id);
-            return (0.0, start_nonce);
+            break; // Nonce is not sequential or is less than the latest nonce
         }
         // if !m3ter.validate_payload(payload) {
         //     println!("Invalid payload: {:?}", payload);
-        //     return (energy_sum, latest_nonce);
+        //     break
         // }
         energy_sum += payload.energy;
         latest_nonce = payload.nonce;
