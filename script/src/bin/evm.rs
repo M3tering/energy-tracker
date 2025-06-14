@@ -12,7 +12,7 @@
 
 use std::{fs::File, io::BufReader};
 
-use alloy_sol_types::SolType;
+// use alloy_sol_types::SolType;
 use clap::{Parser, ValueEnum};
 use energy_tracker_lib::{Payload, PublicValuesStruct};
 use serde::{Deserialize, Serialize};
@@ -45,10 +45,10 @@ enum ProofSystem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProofFixture {
-    previous_balances: Vec<f32>,
-    previous_nonces: Vec<i32>,
-    new_balances: Vec<f32>,
-    new_nonces: Vec<i32>,
+    previous_balances: String,
+    previous_nonces: String,
+    new_balances: String,
+    new_nonces: String,
     vkey: String,
     public_values: String,
     proof: String,
