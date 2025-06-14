@@ -1,0 +1,14 @@
+[package]
+name = "energy-tracker-verifier"
+version = "0.1.0"
+edition = "2021"
+default-run = "energy-tracker-verifier"
+
+[[bin]]
+name = "energy-tracker-verifier"
+path = "src/bin/main.rs"
+
+[dependencies]
+alloy = { version = "0.3", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+eyre = "0.6"
