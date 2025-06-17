@@ -21,7 +21,6 @@ pub fn main() {
             .decode(data)
             .expect("Failed to decode data");
         let bytes: [u8; 6] = decoded[..6].try_into().expect("Not enough bytes");
-
         // Convert 6 bytes to i64 (big-endian, pad with zeros)
         let mut buf = [0u8; 8];
         buf[2..].copy_from_slice(&bytes); // pad the first 2 bytes with zeros
@@ -47,18 +46,32 @@ pub fn main() {
         let m3ter = M3ter::new(m3ter[1], m3ter[0]);
 
         let (start, end) = m3ter_position(m3ter_id);
+        println!(
+            "Decoding previous values for M3ter ID: {}, nonce {}, balance {}", 
+            m3ter_id, &previous_nonces[start..end], &previous_balances[start..end]
+        );
         let current_nonce = decode_slice(&previous_nonces[start..end]);
         let current_balance = decode_slice(&previous_balances[start..end]);
-
+        println!(
+            "Decoded values = Current Nonce: {}, Current Balance: {}",
+            current_nonce, current_balance
+        );
         let (energy_sum, latest_nonce) = track_energy(m3ter, m3ter_payloads, current_nonce);
         let energy_sum = (energy_sum.mul(10_f64.powi(7))) as i64 + current_balance;
-
+        println!(
+            "Values after tracking = Energy Sum: {}, Latest Nonce: {}",
+            energy_sum, latest_nonce
+        );
         let nonce_encoded = encode_slice(latest_nonce);
         let balance_encoded = encode_slice(energy_sum);
         if nonce_encoded == "too large" || balance_encoded == "too large" {
             println!("Nonce or balance exceeds the 6-byte limit for m3ter ID: {}", m3ter_id);
             continue;
         }
+        println!(
+            "Encoded values = Nonce: {}, Balance: {}",
+            nonce_encoded, balance_encoded
+        );
         new_nonces.replace_range(start..end, &nonce_encoded);
         new_balances.replace_range(start..end, &balance_encoded);
 
@@ -68,6 +81,7 @@ pub fn main() {
         );
     }
 
+    assert_ne!(new_balances, previous_balances, "New balances matches previous balances");
     // Commit to the public values of the program. The final proof will have a commitment to all the
     // bytes that were committed to.
     sp1_zkvm::io::commit(&PublicValuesStruct {
