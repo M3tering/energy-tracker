@@ -12,6 +12,7 @@
 
 use std::{fs::File, io::BufReader};
 
+use base64::Engine;
 use clap::Parser;
 use energy_tracker_lib::{Payload, PublicValuesStruct};
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
@@ -51,11 +52,17 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::from_env();
     
-    let file = File::open("script/src/sample.json").unwrap();
+    let file = File::open("src/sample.json").unwrap();
     let reader = BufReader::new(file);
     let payload: Payload = serde_json::from_reader(reader).unwrap();
-    // let previous_nonces = &payload.previous_nonces;
-    // let previous_balances = &payload.previous_balances;
+    let previous_nonces = &payload.previous_nonces;
+    let previous_balances = &payload.previous_balances;
+
+    let payload = Payload {
+        mempool: payload.mempool,
+        previous_nonces: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(previous_nonces.as_bytes()),
+        previous_balances: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(previous_balances.as_bytes()),
+    };
 
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
