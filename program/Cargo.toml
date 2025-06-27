@@ -8,4 +8,5 @@ alloy-sol-types = { workspace = true }
 serde = { workspace = true }
 sp1-zkvm = { version = "5.0.0", features = ["embedded"] }
 energy-tracker-lib = { path = "../lib" }
-base64 = "0.22.1"
+hex = "0.4.3"
+

@@ -53,6 +53,7 @@ async fn main() -> Result<()> {
    println!("📊 Public values length: {} bytes", public_values.len());
    println!("🔍 Proof length: {} bytes", proof_bytes.len());
 
+
    // Create the contract instance
    let contract = ISP1Verifier::new(contract_address, &provider);
 

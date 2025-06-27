@@ -12,15 +12,16 @@
 
 use std::{fs::File, io::BufReader};
 
-// use alloy_sol_types::SolType;
-use base64::Engine;
+use alloy_primitives::{B256, U256};
 use clap::{Parser, ValueEnum};
-use energy_tracker_lib::{Payload, PublicValuesStruct};
+use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct};
+use energy_tracker_verifier::get_storage_proofs;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
     include_elf, HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::path::PathBuf;
+use eyre::Result;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const ENERGY_TRACKER_ELF: &[u8] = include_elf!("energy-tracker-program");
@@ -29,8 +30,6 @@ pub const ENERGY_TRACKER_ELF: &[u8] = include_elf!("energy-tracker-program");
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct EVMArgs {
-    #[arg(long, default_value = "20")]
-    n: u32,
     #[arg(long, value_enum, default_value = "groth16")]
     system: ProofSystem,
 }
@@ -41,7 +40,6 @@ enum ProofSystem {
     Plonk,
     Groth16,
 }
-
 /// A fixture that can be used to test the verification of SP1 zkVM proofs inside Solidity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +53,8 @@ struct ProofFixture {
     proof: String,
 }
 
-fn main() {
+#[async_std::main]
+async fn main() -> Result<()> {
     // Setup the logger.
     sp1_sdk::utils::setup_logger();
 
@@ -75,20 +74,33 @@ fn main() {
     let file = File::open("src/sample.json").unwrap();
     let reader = BufReader::new(file);
     let payload: Payload = serde_json::from_reader(reader).unwrap();
-    let previous_nonces = &payload.previous_nonces;
-    let previous_balances = &payload.previous_balances;
+
+    let slots = payload.mempool.keys()
+        .map(|key| {
+            let m3ter_id = key.split('&').collect::<Vec<&str>>()[1];
+            let slot_key = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
+            B256::new(slot_key)
+        })
+        .collect();
+
+    let (proof_hash, proofs) = get_storage_proofs(slots).await?;
+
+    let previous_nonces = payload.previous_nonces[1..].to_vec();
+    let previous_balances = payload.previous_balances[1..].to_vec();
 
     let payload = Payload {
         mempool: payload.mempool,
-        previous_nonces: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(previous_nonces.as_bytes()),
-        previous_balances: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(previous_balances.as_bytes()),
+        previous_nonces,
+        previous_balances,
+        proofs: Some(ProofStruct {
+            proof_hash, proofs
+        })
     };
 
     let mut stdin = SP1Stdin::new();
     stdin.write(&payload);
 
     println!("Proof System: {:?}", args.system);
-
     // Generate the proof based on the selected proof system.
     let proof = match args.system {
         ProofSystem::Plonk => client.prove(&pk, &stdin).plonk().run(),
@@ -97,6 +109,7 @@ fn main() {
     .expect("failed to generate proof");
 
     create_proof_fixture(&proof, &vk, args.system);
+    Ok(())
 }
 
 // Create a fixture for the given proof.
@@ -124,24 +137,8 @@ fn create_proof_fixture(
         proof: format!("0x{}", hex::encode(proof.bytes())),
     };
 
-    // The verification key is used to verify that the proof corresponds to the execution of the
-    // program on the given input.
-    //
-    // Note that the verification key stays the same regardless of the input.
-    println!("Verification Key: {}", fixture.vkey);
-
-    // The public values are the values which are publicly committed to by the zkVM.
-    //
-    // If you need to expose the inputs or outputs of your program, you should commit them in
-    // the public values.
-    println!("Public Values: {}", fixture.public_values);
-
-    // The proof proves to the verifier that the program was executed with some inputs that led to
-    // the give public values.
-    println!("Proof Bytes: {}", fixture.proof);
-
     // Save the fixture to a file.
-    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../contracts/src/fixtures");
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../contracts/fixtures");
     std::fs::create_dir_all(&fixture_path).expect("failed to create fixture path");
     std::fs::write(
         fixture_path.join(format!("{:?}-fixture.json", system).to_lowercase()),
