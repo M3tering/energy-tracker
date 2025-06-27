@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
     let args = EVMArgs::parse();
 
     std::env::set_var("SP1_PROVER", "network");
-    std::env::set_var("NETWORK_PRIVATE_KEY", "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e");
+    std::env::set_var("NETWORK_PRIVATE_KEY", "");
 
     // Setup the prover client.
     let client = ProverClient::from_env();
