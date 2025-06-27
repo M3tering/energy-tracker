@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use alloy_primitives::{Bytes, B256, U256};
+use alloy_primitives::{keccak256, Bytes, B256, U256};
 use alloy_trie::Nibbles;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -102,9 +102,10 @@ impl M3ter {
     }
 
     fn verify_public_key(&self, storage_hash: &B256, proof: &Vec<Bytes>) -> bool {
+        println!("storage hash = {:?}\nproof = {:?}", storage_hash, proof);
         let (m3ter_id, public_key) = (&self.m3ter_id, &self.public_key);
-        let slot_key: [u8; 32] = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
-        let slot_key = Nibbles::unpack(to_keccak_hash(slot_key.to_vec()));
+        let slot_key: [u8; 32] = U256::from(14_u32 + m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
+        let slot_key = Nibbles::unpack(keccak256(slot_key));
         let public_key = if public_key.starts_with("0x") {
             public_key.strip_prefix("0x").unwrap()
         } else {
@@ -112,7 +113,7 @@ impl M3ter {
         };
 
         let expected_value = U256::from_be_slice(&hex::decode(public_key).unwrap());
-
+        println!("expected_value = {:?}", expected_value);
         let expected_value = alloy_rlp::encode(expected_value);
         let result = alloy_trie::proof::verify_proof(
             *storage_hash,

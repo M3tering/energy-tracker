@@ -53,7 +53,7 @@ struct ProofFixture {
     proof: String,
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     // Setup the logger.
     sp1_sdk::utils::setup_logger();
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
     let args = EVMArgs::parse();
 
     std::env::set_var("SP1_PROVER", "network");
-    std::env::set_var("NETWORK_PRIVATE_KEY", "");
+    std::env::set_var("NETWORK_PRIVATE_KEY", "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e");
 
     // Setup the prover client.
     let client = ProverClient::from_env();
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
     let slots = payload.mempool.keys()
         .map(|key| {
             let m3ter_id = key.split('&').collect::<Vec<&str>>()[1];
-            let slot_key = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
+            let slot_key = U256::from(14_u32 + m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
             B256::new(slot_key)
         })
         .collect();

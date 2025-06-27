@@ -39,7 +39,7 @@ struct Args {
     n: u32,
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     // Setup the logger.
     sp1_sdk::utils::setup_logger();

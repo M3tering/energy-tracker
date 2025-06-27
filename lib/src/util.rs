@@ -1,4 +1,5 @@
 
+use alloy_primitives::keccak256;
 use base64::{Engine as _, engine::general_purpose};
 use ed25519_dalek::{Signature, VerifyingKey, Verifier};
 use tiny_keccak::Hasher;
@@ -53,11 +54,5 @@ fn decode_hex(data: &str) -> Vec<u8> {
 }
 
 pub fn to_keccak_hash(input: Vec<u8>) -> [u8; 32] {
-    let mut hasher = tiny_keccak::Keccak::v256();
-    let mut output  = [0u8; 32];
-
-    hasher.update(&input);
-    hasher.finalize(&mut output);
-
-    output
+    *keccak256(input)
 }
