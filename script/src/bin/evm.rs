@@ -85,13 +85,10 @@ async fn main() -> Result<()> {
 
     let (proof_hash, proofs) = get_storage_proofs(slots).await?;
 
-    let previous_nonces = payload.previous_nonces[1..].to_vec();
-    let previous_balances = payload.previous_balances[1..].to_vec();
-
     let payload = Payload {
         mempool: payload.mempool,
-        previous_nonces,
-        previous_balances,
+        previous_nonces: payload.previous_nonces,
+        previous_balances: payload.previous_balances,
         proofs: Some(ProofStruct {
             proof_hash, proofs
         })

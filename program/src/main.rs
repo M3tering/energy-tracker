@@ -94,10 +94,10 @@ pub fn main() {
         panic!("New balances matches previous balances")
     }
 
-    let previous_balances =  format!("0x00{}", hex::encode(to_keccak_hash(previous_balances)));
-    let previous_nonces =  format!("0x00{}", hex::encode(to_keccak_hash(previous_nonces)));
-    let new_balances =  format!("0x00{}", hex::encode(to_keccak_hash(new_balances)));
-    let new_nonces = format!("0x00{}", hex::encode(to_keccak_hash(new_nonces)));
+    let previous_balances =  format!("0x{}", hex::encode(to_keccak_hash(previous_balances)));
+    let previous_nonces =  format!("0x{}", hex::encode(to_keccak_hash(previous_nonces)));
+    let new_balances =  format!("0x{}", hex::encode(to_keccak_hash(new_balances)));
+    let new_nonces = format!("0x{}", hex::encode(to_keccak_hash(new_nonces)));
 
     // Commit to the public values of the program. The final proof will have a commitment to all the
     // bytes that were committed to.
