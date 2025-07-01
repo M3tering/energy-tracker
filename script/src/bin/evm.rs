@@ -15,13 +15,13 @@ use std::{fs::File, io::BufReader};
 use alloy_primitives::{B256, U256};
 use clap::{Parser, ValueEnum};
 use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct};
-use energy_tracker_verifier::get_storage_proofs;
+use energy_tracker_verifier::{get_address, get_block_rpl_bytes, get_storage_proofs};
+use eyre::Result;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
     include_elf, HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::path::PathBuf;
-use eyre::Result;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const ENERGY_TRACKER_ELF: &[u8] = include_elf!("energy-tracker-program");
@@ -48,6 +48,7 @@ struct ProofFixture {
     previous_nonces: String,
     new_balances: String,
     new_nonces: String,
+    block_hash: String,
     vkey: String,
     public_values: String,
     proof: String,
@@ -62,7 +63,10 @@ async fn main() -> Result<()> {
     let args = EVMArgs::parse();
 
     std::env::set_var("SP1_PROVER", "network");
-    std::env::set_var("NETWORK_PRIVATE_KEY", "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e");
+    std::env::set_var(
+        "NETWORK_PRIVATE_KEY",
+        "",
+    );
 
     // Setup the prover client.
     let client = ProverClient::from_env();
@@ -75,23 +79,38 @@ async fn main() -> Result<()> {
     let reader = BufReader::new(file);
     let payload: Payload = serde_json::from_reader(reader).unwrap();
 
-    let slots = payload.mempool.keys()
+    let slots = payload
+        .mempool
+        .keys()
         .map(|key| {
             let m3ter_id = key.split('&').collect::<Vec<&str>>()[1];
-            let slot_key = U256::from(14_u32 + m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
+            let slot_key = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
             B256::new(slot_key)
         })
         .collect();
 
-    let (proof_hash, proofs) = get_storage_proofs(slots).await?;
+    let (
+        account_proof, 
+        encoded_account, 
+        storage_hash, 
+        proofs, 
+        anchor_block
+    ) = get_storage_proofs(slots).await?;
+    let block_bytes = get_block_rpl_bytes(anchor_block).await?;
 
+    println!("Anchor Block: {}", anchor_block);
     let payload = Payload {
         mempool: payload.mempool,
         previous_nonces: payload.previous_nonces,
         previous_balances: payload.previous_balances,
         proofs: Some(ProofStruct {
-            proof_hash, proofs
-        })
+            address: get_address(),
+            account_proof,
+            encoded_account,
+            storage_hash,
+            proofs,
+        }),
+        block_bytes: Some(block_bytes),
     };
 
     let mut stdin = SP1Stdin::new();
@@ -117,18 +136,21 @@ fn create_proof_fixture(
 ) {
     // Deserialize the public values.
     let bytes = proof.public_values.as_slice();
-    let PublicValuesStruct { 
+    let PublicValuesStruct {
         previous_balances,
         previous_nonces,
-        new_balances, 
-        new_nonces } = bincode::deserialize(bytes).unwrap();
+        new_balances,
+        new_nonces,
+        block_hash
+    } = bincode::deserialize(bytes).unwrap();
 
     // Create the testing fixture so we can test things end-to-end.
     let fixture = ProofFixture {
         previous_balances,
         previous_nonces,
-        new_balances, 
+        new_balances,
         new_nonces,
+        block_hash,
         vkey: vk.bytes32().to_string(),
         public_values: format!("0x{}", hex::encode(bytes)),
         proof: format!("0x{}", hex::encode(proof.bytes())),
