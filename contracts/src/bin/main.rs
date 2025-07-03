@@ -2,11 +2,9 @@ use alloy::{
    // contract::,
    hex,
    // node_bindings::Anvil,
-   primitives::{Address, Bytes, FixedBytes, U256},
-   providers::{Provider, ProviderBuilder},
-   rpc::types::TransactionRequest,
+   primitives::{Address, Bytes, FixedBytes},
+   providers::{ProviderBuilder},
    sol,
-   transports::http::{Client, Http},
 };
 use eyre::Result;
 

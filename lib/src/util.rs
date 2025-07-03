@@ -66,6 +66,6 @@ pub fn verify_account_proof(state_root: B256, address: Vec<u8>, expected_value: 
     alloy_trie::proof::verify_proof(state_root, address, Some(expected_value), &proof).is_ok()
 }
 
-pub fn to_keccak_hash(input: Vec<u8>) -> [u8; 32] {
-    *keccak256(input)
+pub fn to_keccak_hash(input: Vec<u8>) -> B256 {
+    keccak256(input)
 }

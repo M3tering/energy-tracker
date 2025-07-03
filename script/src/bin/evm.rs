@@ -11,11 +11,11 @@
 //! ```
 
 use std::{fs::File, io::BufReader};
-
+use alloy_sol_types::SolType;
 use alloy_primitives::{B256, U256};
 use clap::{Parser, ValueEnum};
 use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct};
-use energy_tracker_verifier::{get_address, get_block_rpl_bytes, get_storage_proofs};
+use energy_tracker_verifier::{get_block_rpl_bytes, get_storage_proofs};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
@@ -44,11 +44,11 @@ enum ProofSystem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProofFixture {
-    previous_balances: String,
-    previous_nonces: String,
-    new_balances: String,
-    new_nonces: String,
-    block_hash: String,
+    previous_balances: B256,
+    previous_nonces: B256,
+    new_balances: B256,
+    new_nonces: B256,
+    block_hash: B256,
     vkey: String,
     public_values: String,
     proof: String,
@@ -63,16 +63,7 @@ async fn main() -> Result<()> {
     let args = EVMArgs::parse();
 
     std::env::set_var("SP1_PROVER", "network");
-    std::env::set_var(
-        "NETWORK_PRIVATE_KEY",
-        "",
-    );
-
-    // Setup the prover client.
-    let client = ProverClient::from_env();
-
-    // Setup the program.
-    let (pk, vk) = client.setup(ENERGY_TRACKER_ELF);
+    std::env::set_var("NETWORK_PRIVATE_KEY", "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e");
 
     // Setup the inputs.
     let file = File::open("src/sample.json").unwrap();
@@ -89,13 +80,8 @@ async fn main() -> Result<()> {
         })
         .collect();
 
-    let (
-        account_proof, 
-        encoded_account, 
-        storage_hash, 
-        proofs, 
-        anchor_block
-    ) = get_storage_proofs(slots).await?;
+    let (account_proof, encoded_account, storage_hash, proofs, anchor_block) =
+        get_storage_proofs(slots).await?;
     let block_bytes = get_block_rpl_bytes(anchor_block).await?;
 
     println!("Anchor Block: {}", anchor_block);
@@ -104,7 +90,6 @@ async fn main() -> Result<()> {
         previous_nonces: payload.previous_nonces,
         previous_balances: payload.previous_balances,
         proofs: Some(ProofStruct {
-            address: get_address(),
             account_proof,
             encoded_account,
             storage_hash,
@@ -116,8 +101,18 @@ async fn main() -> Result<()> {
     let mut stdin = SP1Stdin::new();
     stdin.write(&payload);
 
+    // Setup the prover client.
+    let client = ProverClient::from_env();
+
+    // let (_, _report) = client.execute(ENERGY_TRACKER_ELF, &stdin).run().expect("failed to execute program");
+
+    // let output = stdin.read::<(String, String)>();
+    // let output = report.
+    // println!("Program executed successfully. output:\n{:?}", output);
+    // Setup the program.
+    let (pk, vk) = client.setup(ENERGY_TRACKER_ELF);
+
     println!("Proof System: {:?}", args.system);
-    // Generate the proof based on the selected proof system.
     let proof = match args.system {
         ProofSystem::Plonk => client.prove(&pk, &stdin).plonk().run(),
         ProofSystem::Groth16 => client.prove(&pk, &stdin).groth16().run(),
@@ -134,15 +129,15 @@ fn create_proof_fixture(
     vk: &SP1VerifyingKey,
     system: ProofSystem,
 ) {
-    // Deserialize the public values.
     let bytes = proof.public_values.as_slice();
+    let output = PublicValuesStruct::abi_decode(bytes).unwrap();
     let PublicValuesStruct {
         previous_balances,
         previous_nonces,
         new_balances,
         new_nonces,
-        block_hash
-    } = bincode::deserialize(bytes).unwrap();
+        block_hash,
+    } = output;
 
     // Create the testing fixture so we can test things end-to-end.
     let fixture = ProofFixture {

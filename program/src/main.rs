@@ -1,39 +1,45 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
+use alloy_sol_types::{sol, SolValue};
+use energy_tracker_lib::{
+    get_state_root, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload,
+    PublicValuesStruct,
+};
+use serde::{Deserialize, Serialize};
+use sp1_zkvm::io::hint;
 use std::ops::Mul;
-use energy_tracker_lib::{get_state_root, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload, PublicValuesStruct};
 
 pub fn main() {
     let payload = sp1_zkvm::io::read::<Payload>();
+    let address = "942fb396437b444fa5863559e39f01907ee396f4";
 
     let mempool = &payload.mempool;
     let previous_nonces = payload.previous_nonces;
     let previous_balances = payload.previous_balances;
 
-    let (
-        address, 
-        account_proof, 
-        encoded_account, 
-        storage_hash, 
-        proofs
-    ) = match payload.proofs {
-        Some(value) => (value.address, value.account_proof, value.encoded_account, value.storage_hash, value.proofs),
-        None => panic!("storage proofs missing")
+    let (account_proof, encoded_account, storage_hash, proofs) = match payload.proofs {
+        Some(value) => (
+            value.account_proof,
+            value.encoded_account,
+            value.storage_hash,
+            value.proofs,
+        ),
+        None => panic!("storage proofs missing"),
     };
 
     let (state_root, block_bytes) = match payload.block_bytes {
         Some(value) => (get_state_root(&value), value),
-        None => panic!("block bytes missing")
+        None => panic!("block bytes missing"),
     };
 
-    if !verify_account_proof(state_root, address.to_vec(), encoded_account, account_proof) {
+    if !verify_account_proof(state_root, hex::decode(address).unwrap(), encoded_account, account_proof) {
         panic!("Account proof verification failed");
     };
 
     let mut new_nonces = previous_nonces.clone();
     let mut new_balances = previous_balances.clone();
-    
+
     let m3ter_position = |m3ter_id: usize| (m3ter_id * 6, m3ter_id * 6 + 6);
     let decode_slice = |data: &[u8; 6]| -> i64 {
         // Convert 6 bytes to i64 (big-endian, pad with zeros)
@@ -70,7 +76,12 @@ pub fn main() {
             "Decoded values = Current Nonce: {}, Current Balance: {}",
             current_nonce, current_balance
         );
-        let (energy_sum, latest_nonce) = track_energy(m3ter, m3ter_payloads, current_nonce, (&storage_hash, &proofs[index]));
+        let (energy_sum, latest_nonce) = track_energy(
+            m3ter,
+            m3ter_payloads,
+            current_nonce,
+            (&storage_hash, &proofs[index]),
+        );
         let energy_sum = (energy_sum.mul(10_f64.powi(7))) as i64 + current_balance;
         println!(
             "Values after tracking = Energy Sum: {}, Latest Nonce: {}",
@@ -99,7 +110,7 @@ pub fn main() {
             "M3ter ID: {}, Energy Sum: {}, Latest Nonce: {}",
             m3ter_id, energy_sum, latest_nonce
         );
-        
+
         index += 1_usize;
     }
 
@@ -107,21 +118,25 @@ pub fn main() {
         panic!("New balances matches previous balances")
     }
 
-    
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Output(String, String);
 
-    let block_hash = format!("0x{}", hex::encode(to_keccak_hash(block_bytes)));
-    let previous_balances =  format!("0x{}", hex::encode(to_keccak_hash(previous_balances)));
-    let previous_nonces =  format!("0x{}", hex::encode(to_keccak_hash(previous_nonces)));
-    let new_balances =  format!("0x{}", hex::encode(to_keccak_hash(new_balances)));
-    let new_nonces = format!("0x{}", hex::encode(to_keccak_hash(new_nonces)));
+    let output = Output(hex::encode(&new_balances), hex::encode(&new_nonces));
 
-    // Commit to the public values of the program. The final proof will have a commitment to all the
-    // bytes that were committed to.
-    sp1_zkvm::io::commit(&PublicValuesStruct {
+    hint(&output);
+
+    let block_hash = to_keccak_hash(block_bytes);
+    let previous_balances = to_keccak_hash(previous_balances);
+    let previous_nonces = to_keccak_hash(previous_nonces);
+    let new_balances = to_keccak_hash(new_balances);
+    let new_nonces = to_keccak_hash(new_nonces);
+
+    let public_values = PublicValuesStruct {
+        block_hash,
         previous_balances,
         previous_nonces,
         new_balances,
         new_nonces,
-        block_hash,
-    });
+    };
+    sp1_zkvm::io::commit_slice(&public_values.abi_encode());
 }

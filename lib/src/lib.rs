@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fmt::Debug, ops::Add};
+use std::{collections::HashMap, fmt::Debug};
 
+use alloy_sol_types::sol;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_trie::Nibbles;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -9,13 +10,15 @@ use util::validate_signature;
 
 pub use util::{to_keccak_hash, verify_account_proof, get_state_root};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct PublicValuesStruct {
-    pub previous_balances: String,
-    pub previous_nonces: String,
-    pub new_balances: String,
-    pub new_nonces: String,
-    pub block_hash: String,
+sol! {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct PublicValuesStruct {
+        bytes32 block_hash;
+        bytes32 previous_balances;
+        bytes32 previous_nonces;
+        bytes32 new_balances;
+        bytes32 new_nonces;
+    }
 }
 
 fn deserialize_hex<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
@@ -41,7 +44,6 @@ where
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProofStruct {
-    pub address: Address,
     pub storage_hash: B256,
     pub proofs: Vec<Vec<Bytes>>,
     pub encoded_account: Vec<u8>,
