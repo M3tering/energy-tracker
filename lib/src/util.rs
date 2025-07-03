@@ -1,8 +1,9 @@
 
-use alloy_primitives::keccak256;
+use alloy_consensus::Header;
+use alloy_primitives::{keccak256, Bytes, B256};
+use alloy_trie::Nibbles;
 use base64::{Engine as _, engine::general_purpose};
 use ed25519_dalek::{Signature, VerifyingKey, Verifier};
-use tiny_keccak::Hasher;
 
 pub fn validate_signature(message_hash: Vec<u8>, public_key: &str, signature_str: &str) -> Option<bool> {
     // Decode the signature and public key using ed25519-dalek
@@ -51,6 +52,18 @@ fn decode_hex(data: &str) -> Vec<u8> {
         Ok(data) => data,
         Err(error) =>  panic!("failed with error {}", error)
     }
+}
+
+pub fn get_state_root(block_bytes: &Vec<u8>) -> B256 {
+    let block_header = alloy_rlp::decode_exact::<Header>(block_bytes)
+        .expect("Failed to decode block header");
+
+    block_header.state_root
+}
+
+pub fn verify_account_proof(state_root: B256, address: Vec<u8>, expected_value: Vec<u8>, proof: Vec<Bytes>) -> bool {
+    let address = Nibbles::unpack(to_keccak_hash(address));
+    alloy_trie::proof::verify_proof(state_root, address, Some(expected_value), &proof).is_ok()
 }
 
 pub fn to_keccak_hash(input: Vec<u8>) -> [u8; 32] {

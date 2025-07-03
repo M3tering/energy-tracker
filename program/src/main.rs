@@ -2,7 +2,7 @@
 sp1_zkvm::entrypoint!(main);
 
 use std::ops::Mul;
-use energy_tracker_lib::{track_energy, to_keccak_hash, M3ter, Payload, PublicValuesStruct};
+use energy_tracker_lib::{get_state_root, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload, PublicValuesStruct};
 
 pub fn main() {
     let payload = sp1_zkvm::io::read::<Payload>();
@@ -11,11 +11,24 @@ pub fn main() {
     let previous_nonces = payload.previous_nonces;
     let previous_balances = payload.previous_balances;
 
-    
-
-    let (storage_hash, proofs) = match payload.proofs {
-        Some(value) => (value.proof_hash, value.proofs),
+    let (
+        address, 
+        account_proof, 
+        encoded_account, 
+        storage_hash, 
+        proofs
+    ) = match payload.proofs {
+        Some(value) => (value.address, value.account_proof, value.encoded_account, value.storage_hash, value.proofs),
         None => panic!("storage proofs missing")
+    };
+
+    let (state_root, block_bytes) = match payload.block_bytes {
+        Some(value) => (get_state_root(&value), value),
+        None => panic!("block bytes missing")
+    };
+
+    if !verify_account_proof(state_root, address.to_vec(), encoded_account, account_proof) {
+        panic!("Account proof verification failed");
     };
 
     let mut new_nonces = previous_nonces.clone();
@@ -94,6 +107,9 @@ pub fn main() {
         panic!("New balances matches previous balances")
     }
 
+    
+
+    let block_hash = format!("0x{}", hex::encode(to_keccak_hash(block_bytes)));
     let previous_balances =  format!("0x{}", hex::encode(to_keccak_hash(previous_balances)));
     let previous_nonces =  format!("0x{}", hex::encode(to_keccak_hash(previous_nonces)));
     let new_balances =  format!("0x{}", hex::encode(to_keccak_hash(new_balances)));
@@ -106,5 +122,6 @@ pub fn main() {
         previous_nonces,
         new_balances,
         new_nonces,
+        block_hash,
     });
 }

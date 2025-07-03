@@ -1,13 +1,13 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, ops::Add};
 
-use alloy_primitives::{keccak256, Bytes, B256, U256};
+use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_trie::Nibbles;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod util;
 use util::validate_signature;
 
-pub use util::to_keccak_hash;
+pub use util::{to_keccak_hash, verify_account_proof, get_state_root};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublicValuesStruct {
@@ -15,6 +15,7 @@ pub struct PublicValuesStruct {
     pub previous_nonces: String,
     pub new_balances: String,
     pub new_nonces: String,
+    pub block_hash: String,
 }
 
 fn deserialize_hex<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
@@ -40,8 +41,11 @@ where
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProofStruct {
-    pub proof_hash: B256,
+    pub address: Address,
+    pub storage_hash: B256,
     pub proofs: Vec<Vec<Bytes>>,
+    pub encoded_account: Vec<u8>,
+    pub account_proof: Vec<Bytes>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,6 +57,7 @@ pub struct Payload {
     #[serde(deserialize_with = "deserialize_hex", serialize_with = "serialize_hex")]
     pub previous_balances: Vec<u8>,
     pub proofs: Option<ProofStruct>,
+    pub block_bytes: Option<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -91,7 +96,7 @@ impl M3ter {
         }
     }
 
-    fn validate_payload(&self, payload: &M3terPayload) -> bool {
+    fn  validate_payload(&self, payload: &M3terPayload) -> bool {
         match validate_signature(payload.msg_to_vec(), &self.public_key, &payload.signature) {
             Some(is_valid) => is_valid,
             None => {
@@ -104,7 +109,7 @@ impl M3ter {
     fn verify_public_key(&self, storage_hash: &B256, proof: &Vec<Bytes>) -> bool {
         println!("storage hash = {:?}\nproof = {:?}", storage_hash, proof);
         let (m3ter_id, public_key) = (&self.m3ter_id, &self.public_key);
-        let slot_key: [u8; 32] = U256::from(14_u32 + m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
+        let slot_key: [u8; 32] = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
         let slot_key = Nibbles::unpack(keccak256(slot_key));
         let public_key = if public_key.starts_with("0x") {
             public_key.strip_prefix("0x").unwrap()

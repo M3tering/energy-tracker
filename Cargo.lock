@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-consensus"
-version = "1.0.13"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b64ec76fe727969728f4396e3f410cdd825042d81d5017bfa5e58bf349071290"
+checksum = "d8b77018eec2154eb158869f9f2914a3ea577adf87b11be2764d4795d5ccccf7"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -132,9 +132,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-contract"
-version = "1.0.13"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "719905011359b266bdbf1f76f4ef7df6df75ef33c55c47a1f6b26bbdefbf4cb0"
+checksum = "049ed4836d368929d7c5e206bab2e8d92f00524222edc0026c6bf2a3cb8a02d5"
 dependencies = [
  "alloy-consensus",
  "alloy-dyn-abi",
@@ -2175,6 +2175,7 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 name = "energy-tracker-lib"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus",
  "alloy-primitives",
  "alloy-rlp",
  "alloy-sol-types",
@@ -2213,7 +2214,6 @@ dependencies = [
  "serde_json",
  "sp1-build",
  "sp1-sdk",
- "tiny-keccak",
  "tokio",
  "tracing",
 ]
@@ -2223,6 +2223,7 @@ name = "energy-tracker-verifier"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "alloy-rlp",
  "eyre",
  "tokio",
 ]
