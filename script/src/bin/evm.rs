@@ -12,7 +12,7 @@
 
 use std::{fs::File, io::BufReader};
 use alloy_sol_types::SolType;
-use alloy_primitives::{B256, U256};
+use alloy_primitives::{B256, U256, Bytes};
 use clap::{Parser, ValueEnum};
 use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct};
 use energy_tracker_verifier::{get_block_rpl_bytes, get_storage_proofs};
@@ -46,8 +46,8 @@ enum ProofSystem {
 struct ProofFixture {
     previous_balances: B256,
     previous_nonces: B256,
-    new_balances: B256,
-    new_nonces: B256,
+    new_balances: Bytes,
+    new_nonces: Bytes,
     block_hash: B256,
     vkey: String,
     public_values: String,
@@ -106,9 +106,6 @@ async fn main() -> Result<()> {
 
     // let (_, _report) = client.execute(ENERGY_TRACKER_ELF, &stdin).run().expect("failed to execute program");
 
-    // let output = stdin.read::<(String, String)>();
-    // let output = report.
-    // println!("Program executed successfully. output:\n{:?}", output);
     // Setup the program.
     let (pk, vk) = client.setup(ENERGY_TRACKER_ELF);
 
@@ -118,6 +115,9 @@ async fn main() -> Result<()> {
         ProofSystem::Groth16 => client.prove(&pk, &stdin).groth16().run(),
     }
     .expect("failed to generate proof");
+
+    let output = stdin.read::<(String, String)>();
+    println!("Program executed successfully. output:\n{:?}", output);
 
     create_proof_fixture(&proof, &vk, args.system);
     Ok(())

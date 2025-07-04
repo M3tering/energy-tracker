@@ -16,8 +16,8 @@ sol! {
         bytes32 block_hash;
         bytes32 previous_balances;
         bytes32 previous_nonces;
-        bytes32 new_balances;
-        bytes32 new_nonces;
+        bytes new_balances;
+        bytes new_nonces;
     }
 }
 

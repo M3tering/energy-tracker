@@ -1,13 +1,11 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use alloy_sol_types::{sol, SolValue};
+use alloy_sol_types::{SolValue};
 use energy_tracker_lib::{
     get_state_root, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload,
     PublicValuesStruct,
 };
-use serde::{Deserialize, Serialize};
-use sp1_zkvm::io::hint;
 use std::ops::Mul;
 
 pub fn main() {
@@ -118,18 +116,11 @@ pub fn main() {
         panic!("New balances matches previous balances")
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
-    struct Output(String, String);
-
-    let output = Output(hex::encode(&new_balances), hex::encode(&new_nonces));
-
-    hint(&output);
-
     let block_hash = to_keccak_hash(block_bytes);
     let previous_balances = to_keccak_hash(previous_balances);
     let previous_nonces = to_keccak_hash(previous_nonces);
-    let new_balances = to_keccak_hash(new_balances);
-    let new_nonces = to_keccak_hash(new_nonces);
+    let new_balances = new_balances.into();
+    let new_nonces = new_nonces.into();
 
     let public_values = PublicValuesStruct {
         block_hash,
