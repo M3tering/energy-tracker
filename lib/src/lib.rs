@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use alloy_sol_types::sol;
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
+use alloy_primitives::{keccak256, Bytes, B256, U256};
 use alloy_trie::Nibbles;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -18,6 +18,36 @@ sol! {
         bytes32 previous_nonces;
         bytes new_balances;
         bytes new_nonces;
+    }
+}
+
+impl PublicValuesStruct {
+    pub fn concat_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend(self.block_hash.as_slice());
+        bytes.extend(self.previous_balances.as_slice());
+        bytes.extend(self.previous_nonces.as_slice());
+        bytes.extend(self.new_balances.clone());
+        bytes.extend(self.new_nonces.clone());
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let block_hash = B256::from_slice(&bytes[0..32]);
+        let previous_balances = B256::from_slice(&bytes[32..64]);
+        let previous_nonces = B256::from_slice(&bytes[64..96]);
+        let update_values = &bytes[96..];
+        let split_point = update_values.len() / 2;
+        let new_balances = update_values[0..split_point].to_vec().into();
+        let new_nonces = update_values[split_point..].to_vec().into();
+
+        PublicValuesStruct {
+            block_hash,
+            previous_balances,
+            previous_nonces,
+            new_balances,
+            new_nonces,
+        }
     }
 }
 

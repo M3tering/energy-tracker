@@ -11,7 +11,6 @@
 //! ```
 
 use std::{fs::File, io::BufReader};
-use alloy_sol_types::SolType;
 use alloy_primitives::{B256, U256, Bytes};
 use clap::{Parser, ValueEnum};
 use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct};
@@ -116,9 +115,6 @@ async fn main() -> Result<()> {
     }
     .expect("failed to generate proof");
 
-    let output = stdin.read::<(String, String)>();
-    println!("Program executed successfully. output:\n{:?}", output);
-
     create_proof_fixture(&proof, &vk, args.system);
     Ok(())
 }
@@ -130,7 +126,7 @@ fn create_proof_fixture(
     system: ProofSystem,
 ) {
     let bytes = proof.public_values.as_slice();
-    let output = PublicValuesStruct::abi_decode(bytes).unwrap();
+    let output = PublicValuesStruct::from_bytes(bytes);
     let PublicValuesStruct {
         previous_balances,
         previous_nonces,

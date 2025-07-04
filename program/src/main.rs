@@ -1,7 +1,6 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use alloy_sol_types::{SolValue};
 use energy_tracker_lib::{
     get_state_root, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload,
     PublicValuesStruct,
@@ -129,5 +128,5 @@ pub fn main() {
         new_balances,
         new_nonces,
     };
-    sp1_zkvm::io::commit_slice(&public_values.abi_encode());
+    sp1_zkvm::io::commit_slice(&public_values.concat_bytes());
 }
