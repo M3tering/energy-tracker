@@ -13,4 +13,7 @@ path = "src/bin/main.rs"
 alloy = { version = "1.0.13", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 alloy-rlp = "0.3.12"
+alloy-sol-types = { workspace = true }
 eyre = "0.6"
+alloy-contract = "1.0.20"
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }

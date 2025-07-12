@@ -30,7 +30,12 @@ pub fn main() {
         None => panic!("block bytes missing"),
     };
 
-    if !verify_account_proof(state_root, hex::decode(address).unwrap(), encoded_account, account_proof) {
+    if !verify_account_proof(
+        state_root,
+        hex::decode(address).unwrap(),
+        encoded_account,
+        account_proof,
+    ) {
         panic!("Account proof verification failed");
     };
 
@@ -61,14 +66,29 @@ pub fn main() {
         let m3ter = M3ter::new(m3ter[1], m3ter[0]);
 
         let (start, end) = m3ter_position(m3ter_id);
+        if previous_nonces.len() != previous_balances.len() {
+            panic!(
+                "total nonces {} does not equal total balances {}",
+                previous_nonces.len(),
+                previous_balances.len()
+            )
+        }
+        
+        if start >= previous_nonces.len() {
+            let padding_len = end - previous_nonces.len();
+            let padding = vec![0u8; padding_len];
+            new_nonces.extend(&padding);
+            new_balances.extend(padding);
+        }
+
         println!(
             "Decoding previous values for M3ter ID: {}, nonce {}, balance {}",
             m3ter_id,
-            hex::encode(&previous_nonces[start..end]),
-            hex::encode(&previous_balances[start..end])
+            hex::encode(&new_nonces[start..end]),
+            hex::encode(&new_balances[start..end])
         );
-        let current_nonce = decode_slice(&previous_nonces[start..end].try_into().unwrap());
-        let current_balance = decode_slice(&previous_balances[start..end].try_into().unwrap());
+        let current_nonce = decode_slice(&new_nonces[start..end].try_into().unwrap());
+        let current_balance = decode_slice(&new_balances[start..end].try_into().unwrap());
         println!(
             "Decoded values = Current Nonce: {}, Current Balance: {}",
             current_nonce, current_balance

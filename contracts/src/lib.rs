@@ -1,11 +1,12 @@
-
 use alloy::{
-    eips::BlockNumberOrTag, 
-    primitives::{Address, Bytes, B256, U256}, 
-    providers::{Provider, ProviderBuilder}
+    eips::BlockNumberOrTag,
+    json_abi::JsonAbi,
+    primitives::{Address, Bytes, B256, U256},
+    providers::{Provider, ProviderBuilder},
 };
+use alloy_contract::Interface;
 use alloy_rlp::{encode, RlpEncodable};
-use eyre::Result;
+use eyre::{Ok, Result};
 
 #[derive(Debug, RlpEncodable)]
 pub struct Account {
@@ -15,8 +16,17 @@ pub struct Account {
     code_hash: B256,
 }
 
+// sol! {
+//     #[sol(rpc)]
+//     contract RollUp {
+//         function latestStateAddress(uint io) public returns (address);
+//     }
+// }
+
 pub fn get_address() -> Address {
-    "0x942fb396437b444fa5863559e39f01907ee396f4".parse().expect("Invalid address")
+    "0x942fb396437b444fa5863559e39f01907ee396f4"
+        .parse()
+        .expect("Invalid address")
 }
 
 async fn get_provider() -> Result<impl Provider> {
@@ -26,7 +36,9 @@ async fn get_provider() -> Result<impl Provider> {
     Ok(Box::new(provider))
 }
 
-pub async fn get_storage_proofs(slots: Vec<B256>) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<Vec<Bytes>>, u64)> {
+pub async fn get_storage_proofs(
+    slots: Vec<B256>,
+) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<Vec<Bytes>>, u64)> {
     let provider = get_provider().await?;
 
     let anchor_block = provider.get_block_number().await?;
@@ -35,7 +47,8 @@ pub async fn get_storage_proofs(slots: Vec<B256>) -> Result<(Vec<Bytes>, Vec<u8>
     // Address to verify
     let proof = provider.get_proof(get_address(), slots);
 
-    let proof_at_block = proof.number(anchor_block)
+    let proof_at_block = proof
+        .number(anchor_block)
         .await
         .map_err(|e| eyre::eyre!("Failed to get proof: {}", e))?;
 
@@ -56,7 +69,13 @@ pub async fn get_storage_proofs(slots: Vec<B256>) -> Result<(Vec<Bytes>, Vec<u8>
         .map(|value| value.proof.clone())
         .collect();
 
-    Ok((proof_at_block.account_proof, encoded_account, proof_at_block.storage_hash, storage_proofs, anchor_block))
+    Ok((
+        proof_at_block.account_proof,
+        encoded_account,
+        proof_at_block.storage_hash,
+        storage_proofs,
+        anchor_block,
+    ))
 }
 
 pub async fn get_block_rpl_bytes(block_number: u64) -> Result<Vec<u8>> {
@@ -71,6 +90,50 @@ pub async fn get_block_rpl_bytes(block_number: u64) -> Result<Vec<u8>> {
         let block_bytes = encode(block_header.into_consensus());
         Ok(block_bytes)
     } else {
-        Err(eyre::eyre!("Block not found")) 
+        Err(eyre::eyre!("Block not found"))
     }
+}
+
+pub async fn get_previous_values(selector: U256) -> Result<Bytes> {
+    let call_abi = r#"[
+        {
+            "name": "latestStateAddress",
+            "type": "function",
+            "inputs": [
+                {
+                    "name": "io",
+                    "type": "uint256"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view"
+        }
+    ]"#;
+
+    let provider = get_provider().await?;
+    let rollup_address = "0xe7f4b0a3c9Bbf1af1456266e16412585eA6d172B"
+        .parse()
+        .expect("invalid address");
+
+    println!("getting balance");
+    let balance = provider.get_balance(rollup_address).await?;
+
+    println!("balance {:?}", balance);
+
+    let abi: JsonAbi = serde_json::from_str(call_abi)?;
+    let interface = Interface::new(abi);
+
+    let contract = interface.connect(rollup_address, &provider);
+    let call_builder = contract.function("latestStateAddress", &[selector.into()])?;
+    println!("getting state address");
+    let state_address = call_builder.call().await?;
+
+    println!("state address {:?}", state_address);
+    let code = provider.get_code_at(state_address[0].as_address().unwrap()).await?;
+    println!("code length: {}", code.len());
+    Ok(code)
 }

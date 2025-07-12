@@ -13,8 +13,8 @@
 use std::{fs::File, io::BufReader};
 use alloy_primitives::{B256, U256, Bytes};
 use clap::{Parser, ValueEnum};
-use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct};
-use energy_tracker_verifier::{get_block_rpl_bytes, get_storage_proofs};
+use energy_tracker_lib::{Payload, ProofStruct, PublicValuesStruct, to_keccak_hash};
+use energy_tracker_verifier::{get_block_rpl_bytes, get_previous_values, get_storage_proofs};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
@@ -69,13 +69,23 @@ async fn main() -> Result<()> {
     let reader = BufReader::new(file);
     let payload: Payload = serde_json::from_reader(reader).unwrap();
 
+    let previous_nonces = get_previous_values(U256::from(0)).await?;
+    let previous_balances = get_previous_values(U256::from(1)).await?;
+
     let slots = payload
         .mempool
         .keys()
         .map(|key| {
+            let base_slot: [u8; 32] = U256::from(0).to_be_bytes();
             let m3ter_id = key.split('&').collect::<Vec<&str>>()[1];
-            let slot_key = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
-            B256::new(slot_key)
+            let key: [u8; 32] = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
+
+            let mut slot_key_raw = vec![];
+
+            slot_key_raw.extend(key);
+            slot_key_raw.extend(base_slot);
+
+            to_keccak_hash(slot_key_raw)
         })
         .collect();
 
@@ -86,8 +96,8 @@ async fn main() -> Result<()> {
     println!("Anchor Block: {}", anchor_block);
     let payload = Payload {
         mempool: payload.mempool,
-        previous_nonces: payload.previous_nonces,
-        previous_balances: payload.previous_balances,
+        previous_nonces: previous_nonces.to_vec(),
+        previous_balances: previous_balances.to_vec(),
         proofs: Some(ProofStruct {
             account_proof,
             encoded_account,
