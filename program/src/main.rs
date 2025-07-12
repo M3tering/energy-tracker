@@ -38,14 +38,14 @@ pub fn main() {
     let mut new_balances = previous_balances.clone();
 
     let m3ter_position = |m3ter_id: usize| (m3ter_id * 6, m3ter_id * 6 + 6);
-    let decode_slice = |data: &[u8; 6]| -> i64 {
+    let decode_slice = |data: &[u8; 6]| -> u64 {
         // Convert 6 bytes to i64 (big-endian, pad with zeros)
         let mut buf = [0u8; 8];
         buf[2..].copy_from_slice(data); // pad the first 2 bytes with zeros
-        i64::from_be_bytes(buf)
+        u64::from_be_bytes(buf)
     };
 
-    let encode_slice = |value: i64| -> [u8; 6] {
+    let encode_slice = |value: u64| -> [u8; 6] {
         let bytes: [u8; 8] = value.to_be_bytes(); // [u8; 8]
         if bytes[..2][0] + bytes[..2][1] > 0 {
             return [0; 6];
@@ -79,7 +79,7 @@ pub fn main() {
             current_nonce,
             (&storage_hash, &proofs[index]),
         );
-        let energy_sum = (energy_sum.mul(10_f64.powi(7))) as i64 + current_balance;
+        let energy_sum = (energy_sum.mul(10_f64.powi(7))) as u64 + current_balance;
         println!(
             "Values after tracking = Energy Sum: {}, Latest Nonce: {}",
             energy_sum, latest_nonce

@@ -1,12 +1,7 @@
 {
    "mempool": {
       "0x5e42d8bb9567663151f49e56c996a558ac8516abc8ef65d783ea2e8d0af68a54&64": [
-         {
-            "meterNumber": 5,
-            "signature": "a97a9mUeFuS2HPhzWlJXZd0ngaWoZV8Y2Rr6GYThgWgpqbl4qqKyxmxrQ5YoGSAEkVOc98TY3XV+Upxt9P1xAA==",
-            "energy": 0.016046,
-            "nonce": 3041
-         },
+         ["[1360,213.7,59.84,0.213589,0.00,0.00]", "K2/YrtLlN30eN/CykfW RPMpNUTg E940mXzLBdIgJwvh KozVcCGdJ3BibABkPZUA9phLCasB/jf46PnP9vAQ==", "XkLYu5VnZjFR9J5WyZalWKyFFqvI72XXg oujQr2ilQ="],
          {
             "meterNumber": 5,
             "signature": "GpTveb6NBPV1SV5FHtJqpPw6Qo8EAGUyarC/hJlto+mfLTvB72rQVZ3hXN2vbW7OAtcNVQG2LSKApJSFkmjCDQ==",

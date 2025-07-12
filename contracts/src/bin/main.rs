@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
 
    println!("Using RPC URL: {}", rpc_url);
    
-   let provider = ProviderBuilder::new().on_http(rpc_url.parse()?);
+   let provider = ProviderBuilder::new().connect_http(rpc_url.parse()?);
 
    println!("🚀 Starting SP1 Verifier call...");
    println!("📍 Contract address: {}", contract_address);
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
 
    // Call the verifyProof function
    match contract.verifyProof(program_vkey, public_values, proof_bytes).call().await {
-       Ok(res) => {
+       Ok(_res) => {
            println!("✅ Proof verification successful!");
        }
        Err(e) => {

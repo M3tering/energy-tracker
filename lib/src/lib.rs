@@ -83,7 +83,7 @@ pub struct ProofStruct {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    pub mempool: HashMap<String, Vec<M3terPayload>>,
+    pub mempool: HashMap<String, Vec<M3terRawPayload>>,
     #[serde(deserialize_with = "deserialize_hex", serialize_with = "serialize_hex")]
     pub previous_nonces: Vec<u8>,
     #[serde(deserialize_with = "deserialize_hex", serialize_with = "serialize_hex")]
@@ -93,24 +93,43 @@ pub struct Payload {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct M3terPayload {
-    pub signature: String,
-    pub nonce: i64,
-    pub energy: f64,
+pub struct M3terRawPayload (
+    [String; 3]
+);
+
+impl M3terRawPayload {
+    fn to_m3ter_payloads(&self) -> M3terPayload {
+        let message = self.0[0].clone();
+        let signature = self.0[1].clone();    
+        let payload = serde_json::from_str::<Vec<f64>>(&message)
+            .expect("Failed to parse M3terPayload from raw payload");    
+        let nonce = payload[0] as u64;
+        let energy = payload[3];
+
+        M3terPayload::new(message, signature, nonce, energy)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct M3terPayload {
+    message: String,
+    signature: String,
+    nonce: u64,
+    energy: f64,
 }
 
 impl M3terPayload {
-    pub fn new(signature: &str, nonce: i64, energy: f64) -> Self {
+    pub fn new(message: String, signature: String, nonce: u64, energy: f64) -> Self {
         M3terPayload {
-            signature: String::from(signature),
+            message,
+            signature,
             nonce,
             energy,
         }
     }
 
     fn msg_to_vec(&self) -> Vec<u8> {
-        let message = format!("{}-{}", self.energy, self.nonce);
-        message.as_bytes().to_vec()
+        self.message.as_bytes().to_vec()
     }
 }
 
@@ -167,10 +186,10 @@ impl M3ter {
 
 pub fn track_energy(
     m3ter: M3ter,
-    m3ter_payloads: &[M3terPayload],
-    start_nonce: i64,
+    m3ter_payloads: &[M3terRawPayload],
+    start_nonce: u64,
     (storage_hash, proof): (&B256, &Vec<Bytes>),
-) -> (f64, i64) {
+) -> (f64, u64) {
     if !m3ter.verify_public_key(storage_hash, proof) {
         println!(
             "encountered invalid public_key for m3ter {}",
@@ -182,14 +201,15 @@ pub fn track_energy(
     let mut energy_sum = 0.0;
     let mut latest_nonce = start_nonce;
     for payload in m3ter_payloads.iter() {
-        // if latest_nonce + 1 != payload.nonce {
-        //     println!("Invalid nonce: {} < {} for m3ter_id {}", &payload.nonce, &latest_nonce, &m3ter.m3ter_id);
-        //     break; // Nonce is not sequential or is less than the latest nonce
-        // }
-        // if !m3ter.validate_payload(payload) {
-        //     println!("Invalid payload: {:?}", payload);
-        //     break
-        // }
+        let payload = payload.to_m3ter_payloads();
+        if latest_nonce + 1 != payload.nonce {
+            println!("Invalid nonce: {} < {} for m3ter_id {}", &payload.nonce, &latest_nonce, &m3ter.m3ter_id);
+            break; // Nonce is not sequential or is less than the latest nonce
+        }
+        if !m3ter.validate_payload(&payload) {
+            println!("Invalid payload: {:?}", payload);
+            break
+        }
         energy_sum += payload.energy;
         latest_nonce = payload.nonce;
         println!("State: energy {:?}, nonce {:?}", energy_sum, latest_nonce);
