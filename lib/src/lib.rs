@@ -94,17 +94,17 @@ pub struct Payload {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct M3terRawPayload (
-    [String; 3]
+    [String; 2]
 );
 
 impl M3terRawPayload {
     fn to_m3ter_payloads(&self) -> M3terPayload {
         let message = self.0[0].clone();
-        let signature = self.0[1].clone();    
+        let signature = self.0[1].clone();
         let payload = serde_json::from_str::<Vec<f64>>(&message)
             .expect("Failed to parse M3terPayload from raw payload");    
         let nonce = payload[0] as u64;
-        let energy = payload[3];
+        let energy = payload[payload.len() - 1];
 
         M3terPayload::new(message, signature, nonce, energy)
     }

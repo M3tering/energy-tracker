@@ -24,7 +24,7 @@ pub struct Account {
 // }
 
 pub fn get_address() -> Address {
-    "0x942fb396437b444fa5863559e39f01907ee396f4"
+    "0x302087A3FaEc7Ff7B18B6A618BBC75dD91D3bee8"
         .parse()
         .expect("Invalid address")
 }
@@ -40,6 +40,13 @@ pub async fn get_storage_proofs(
     slots: Vec<B256>,
 ) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<Vec<Bytes>>, u64)> {
     let provider = get_provider().await?;
+
+    println!("{:?}", &slots[0]);
+
+    let value_at_storage = 
+        provider.get_storage_at(get_address(), U256::from_be_slice(slots[0].as_slice())).await?;
+
+    println!("value_at_storage = {:?}", B256::from_slice(&value_at_storage.to_be_bytes_vec()));
 
     let anchor_block = provider.get_block_number().await?;
 
@@ -118,11 +125,6 @@ pub async fn get_previous_values(selector: U256) -> Result<Bytes> {
     let rollup_address = "0xe7f4b0a3c9Bbf1af1456266e16412585eA6d172B"
         .parse()
         .expect("invalid address");
-
-    println!("getting balance");
-    let balance = provider.get_balance(rollup_address).await?;
-
-    println!("balance {:?}", balance);
 
     let abi: JsonAbi = serde_json::from_str(call_abi)?;
     let interface = Interface::new(abi);
