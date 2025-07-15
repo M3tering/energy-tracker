@@ -24,7 +24,7 @@ pub struct Account {
 // }
 
 pub fn get_address() -> Address {
-    "0x302087A3FaEc7Ff7B18B6A618BBC75dD91D3bee8"
+    "0x40a36C0eF29A49D1B1c1fA45fab63762f8FC423F"
         .parse()
         .expect("Invalid address")
 }
@@ -40,18 +40,8 @@ pub async fn get_storage_proofs(
     slots: Vec<B256>,
 ) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<Vec<Bytes>>, u64)> {
     let provider = get_provider().await?;
-
-    println!("{:?}", &slots[0]);
-
-    let value_at_storage = 
-        provider.get_storage_at(get_address(), U256::from_be_slice(slots[0].as_slice())).await?;
-
-    println!("value_at_storage = {:?}", B256::from_slice(&value_at_storage.to_be_bytes_vec()));
-
     let anchor_block = provider.get_block_number().await?;
-
-    println!("Anchor Block: {:?}", anchor_block);
-    // Address to verify
+    
     let proof = provider.get_proof(get_address(), slots);
 
     let proof_at_block = proof

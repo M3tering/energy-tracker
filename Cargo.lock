@@ -2180,7 +2180,6 @@ dependencies = [
  "alloy-rlp",
  "alloy-sol-types",
  "alloy-trie 0.8.1",
- "base64 0.22.1",
  "ed25519-dalek",
  "hex",
  "serde",

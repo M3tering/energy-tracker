@@ -1,14 +1,14 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use alloy_sol_types::sol;
-use alloy_primitives::{keccak256, Bytes, B256, U256};
+use alloy_primitives::{Bytes, B256, U256};
 use alloy_trie::Nibbles;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod util;
 use util::validate_signature;
 
-pub use util::{to_keccak_hash, verify_account_proof, get_state_root};
+pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key};
 
 sol! {
     #[derive(Serialize, Deserialize, Debug)]
@@ -160,8 +160,10 @@ impl M3ter {
     fn verify_public_key(&self, storage_hash: &B256, proof: &Vec<Bytes>) -> bool {
         println!("storage hash = {:?}\nproof = {:?}", storage_hash, proof);
         let (m3ter_id, public_key) = (&self.m3ter_id, &self.public_key);
-        let slot_key: [u8; 32] = U256::from(m3ter_id.parse::<u32>().unwrap()).to_be_bytes();
-        let slot_key = Nibbles::unpack(keccak256(slot_key));
+        let m3ter_id = m3ter_id.parse::<u64>().expect("invalid m3ter id");
+        let slot_key = calc_slot_key(U256::from(m3ter_id)).expect("invalid slot key");
+
+        let slot_key = Nibbles::unpack(to_keccak_hash(slot_key.to_be_bytes_vec()));
         let public_key = if public_key.starts_with("0x") {
             public_key.strip_prefix("0x").unwrap()
         } else {
@@ -179,7 +181,10 @@ impl M3ter {
         );
         match result {
             Ok(()) => true,
-            Err(_err) => false,
+            Err(err) => {
+                println!("Failed to verify proof: {:?}", err);
+                false
+            },
         }
     }
 }
@@ -202,7 +207,7 @@ pub fn track_energy(
     let mut latest_nonce = start_nonce;
     for payload in m3ter_payloads.iter() {
         let payload = payload.to_m3ter_payloads();
-        if latest_nonce + 1 != payload.nonce {
+        if  latest_nonce != 0 && latest_nonce + 1 != payload.nonce {
             println!("Invalid nonce: {} < {} for m3ter_id {}", &payload.nonce, &latest_nonce, &m3ter.m3ter_id);
             break; // Nonce is not sequential or is less than the latest nonce
         }

@@ -9,7 +9,7 @@ use std::ops::Mul;
 
 pub fn main() {
     let payload = sp1_zkvm::io::read::<Payload>();
-    let address = "302087A3FaEc7Ff7B18B6A618BBC75dD91D3bee8";
+    let address = "40a36C0eF29A49D1B1c1fA45fab63762f8FC423F";
 
     let mempool = &payload.mempool;
     let previous_nonces = payload.previous_nonces;
@@ -39,8 +39,6 @@ pub fn main() {
         panic!("Account proof verification failed");
     };
 
-    
-
     let mut new_nonces = previous_nonces.clone();
     let mut new_balances = previous_balances.clone();
 
@@ -61,22 +59,21 @@ pub fn main() {
         let six_bytes = &bytes[2..8]; // Take the last 6 bytes (big-endian)
         six_bytes.try_into().unwrap()
     };
-    let mut index = 0;
+
+    if previous_nonces.len() != previous_balances.len() {
+        panic!(
+            "total nonces {} does not equal total balances {}",
+            previous_nonces.len(),
+            previous_balances.len()
+        )
+    }
     for (m3ter_key, m3ter_payloads) in mempool {
         let m3ter = m3ter_key.split('&').collect::<Vec<&str>>();
         let m3ter_id = m3ter[1].parse::<usize>().unwrap();
         let m3ter = M3ter::new(m3ter[1], m3ter[0]);
 
         let (start, end) = m3ter_position(m3ter_id);
-        if previous_nonces.len() != previous_balances.len() {
-            panic!(
-                "total nonces {} does not equal total balances {}",
-                previous_nonces.len(),
-                previous_balances.len()
-            )
-        }
-
-        if start >= previous_nonces.len() {
+        if start >= previous_nonces.len() || previous_nonces.len() < 6 {
             let padding_len = end - previous_nonces.len();
             let padding = vec![0u8; padding_len];
             new_nonces.extend(&padding);
@@ -99,7 +96,7 @@ pub fn main() {
             m3ter,
             m3ter_payloads,
             current_nonce,
-            (&storage_hash, &proofs[index]),
+            (&storage_hash, &proofs[m3ter_id]),
         );
         let energy_sum = (energy_sum.mul(10_f64.powi(7))) as u64 + current_balance;
         println!(
@@ -113,7 +110,6 @@ pub fn main() {
                 "Nonce or balance exceeds the 6-byte limit for m3ter ID: {}",
                 m3ter_id
             );
-            index += 1_usize;
             continue;
         }
         println!(
@@ -129,8 +125,6 @@ pub fn main() {
             "M3ter ID: {}, Energy Sum: {}, Latest Nonce: {}",
             m3ter_id, energy_sum, latest_nonce
         );
-
-        index += 1_usize;
     }
 
     if new_balances == previous_balances {

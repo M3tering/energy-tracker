@@ -1,11 +1,13 @@
-
 use alloy_consensus::Header;
-use alloy_primitives::{keccak256, Bytes, B256};
+use alloy_primitives::{keccak256, Bytes, B256, U256};
 use alloy_trie::Nibbles;
-use base64::{Engine as _, engine::general_purpose};
-use ed25519_dalek::{Signature, VerifyingKey, Verifier};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-pub fn validate_signature(message_hash: Vec<u8>, public_key: &str, signature_str: &str) -> Option<bool> {
+pub fn validate_signature(
+    message_hash: Vec<u8>,
+    public_key: &str,
+    signature_str: &str,
+) -> Option<bool> {
     // Decode the signature and public key using ed25519-dalek
     let signature = build_signature(signature_str)?;
     let verify_key = build_verifying_key(public_key)?;
@@ -48,24 +50,51 @@ fn build_verifying_key(raw_public_key: &str) -> Option<VerifyingKey> {
 }
 
 fn decode_hex(data: &str) -> Vec<u8> {
-    match general_purpose::STANDARD.decode(data) {
+    match hex::decode(data) {
         Ok(data) => data,
-        Err(error) =>  panic!("failed with error {}", error)
+        Err(error) => panic!("failed with error {}", error),
     }
 }
 
 pub fn get_state_root(block_bytes: &Vec<u8>) -> B256 {
-    let block_header = alloy_rlp::decode_exact::<Header>(block_bytes)
-        .expect("Failed to decode block header");
+    let block_header =
+        alloy_rlp::decode_exact::<Header>(block_bytes).expect("Failed to decode block header");
 
     block_header.state_root
 }
 
-pub fn verify_account_proof(state_root: B256, address: Vec<u8>, expected_value: Vec<u8>, proof: Vec<Bytes>) -> bool {
+pub fn verify_account_proof(
+    state_root: B256,
+    address: Vec<u8>,
+    expected_value: Vec<u8>,
+    proof: Vec<Bytes>,
+) -> bool {
     let address = Nibbles::unpack(to_keccak_hash(address));
     alloy_trie::proof::verify_proof(state_root, address, Some(expected_value), &proof).is_ok()
 }
 
 pub fn to_keccak_hash(input: Vec<u8>) -> B256 {
     keccak256(input)
+}
+
+pub fn calc_slot_key(key: U256) -> Option<U256> {
+    let slot_literal: U256 =
+        "97075990194835763561528983445257952440596761921281503889599705229225710478219"
+            .parse()
+            .expect("invalid slot literal");
+    
+    key.checked_add(slot_literal)
+
+    // let mapping_slot = U256::from(0);
+    // let mut hasher = Keccak256::new();
+
+    // // Encode key as 32 bytes (big-endian)
+    // let key_bytes = key.to_be_bytes::<32>();
+    // hasher.update(key_bytes);
+
+    // // Encode mapping slot as 32 bytes (big-endian)
+    // let slot_bytes = mapping_slot.to_be_bytes::<32>();
+    // hasher.update(slot_bytes);
+
+    // hasher.finalize()
 }

@@ -10,10 +10,11 @@
 //! RUST_LOG=info cargo run --release --bin evm -- --system plonk
 //! ```
 
-use std::{collections::HashMap, fs::File, io::BufReader};
-use alloy_primitives::{B256, U256, Bytes};
+use alloy_primitives::{Bytes, B256, U256};
 use clap::{Parser, ValueEnum};
-use energy_tracker_lib::{to_keccak_hash, M3terRawPayload, Payload, ProofStruct, PublicValuesStruct};
+use energy_tracker_lib::{
+    calc_slot_key, M3terRawPayload, Payload, ProofStruct, PublicValuesStruct,
+};
 use energy_tracker_verifier::{get_block_rpl_bytes, get_previous_values, get_storage_proofs};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,7 @@ use sp1_sdk::{
     include_elf, HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::path::PathBuf;
+use std::{collections::HashMap, fs::File, io::BufReader};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const ENERGY_TRACKER_ELF: &[u8] = include_elf!("energy-tracker-program");
@@ -61,8 +63,11 @@ async fn main() -> Result<()> {
     // Parse the command line arguments.
     let args = EVMArgs::parse();
 
-    std::env::set_var("SP1_PROVER", "network");
-    std::env::set_var("NETWORK_PRIVATE_KEY", "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e");
+    std::env::set_var("SP1_PROVER", "cpu");
+    // std::env::set_var(
+    //     "NETWORK_PRIVATE_KEY",
+    //     "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e",
+    // );
 
     #[derive(Deserialize, Debug)]
     struct SamplePayload(HashMap<String, Vec<M3terRawPayload>>);
@@ -74,32 +79,27 @@ async fn main() -> Result<()> {
     let previous_nonces = get_previous_values(U256::from(0)).await?;
     let previous_balances = get_previous_values(U256::from(1)).await?;
 
-    let mut slots: Vec<u64> = payloads.0
+    let mut slots: Vec<u64> = payloads
+        .0
         .keys()
         .map(|key| {
-            let m3ter_id: u64 = key.split('&').collect::<Vec<&str>>()[1].parse().expect("meter id not valid");
+            let m3ter_id: u64 = key.split('&').collect::<Vec<&str>>()[1]
+                .parse()
+                .expect("meter id not valid");
             m3ter_id
         })
         .collect();
     slots.sort();
 
     let slot_keys = slots
-        .iter().map(|m3ter_id| {
-            let base_slot: [u8; 32] = U256::from(0).to_be_bytes();
-            let key: [u8; 32] = U256::from(*m3ter_id).to_be_bytes();
-
-            let mut slot_key_raw = vec![];
-            slot_key_raw.extend(key);
-            slot_key_raw.extend(base_slot);
-
-            to_keccak_hash(slot_key_raw)
-        })
+        .iter()
+        .map(|m3ter_id| calc_slot_key(U256::from(*m3ter_id)).unwrap())
+        .map(|slot_key| B256::from_slice(&slot_key.to_be_bytes_vec()))
         .collect();
 
     let (account_proof, encoded_account, storage_hash, proofs, anchor_block) =
         get_storage_proofs(slot_keys).await?;
 
-    
     let block_bytes = get_block_rpl_bytes(anchor_block).await?;
 
     println!("Anchor Block: {}", anchor_block);
