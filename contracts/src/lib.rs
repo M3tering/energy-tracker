@@ -17,7 +17,7 @@ pub struct Account {
 }
 
 fn get_rollup_address() -> Address {
-    "0x0170ACb9C2CF86BbE06989DCbB09FdfE7279b892"
+    "0x9b497f9d92feb94a95def44875e833a9b51a7fca"
         .parse()
         .expect("Invalid address")
 }
@@ -71,16 +71,16 @@ async fn get_provider() -> Result<impl Provider> {
     Ok(Box::new(provider))
 }
 
-async fn get_anchor_block() -> Result<B256> {
-    let provider = get_provider().await?;
+// async fn get_anchor_block() -> Result<B256> {
+//     let provider = get_provider().await?;
 
-    let interface = Interface::new(get_rollup_abi());
-    let contract = interface.connect(get_rollup_address(), &provider);
-    let call_builder = contract.function("L1Checkpoint", &[])?;
-    let block_hash = &call_builder.call().await?[0];
-    let block_hash = block_hash.as_fixed_bytes().unwrap();
-    Ok(B256::from_slice(block_hash.0))
-}
+//     let interface = Interface::new(get_rollup_abi());
+//     let contract = interface.connect(get_rollup_address(), &provider);
+//     let call_builder = contract.function("L1Checkpoint", &[])?;
+//     let block_hash = &call_builder.call().await?[0];
+//     let block_hash = block_hash.as_fixed_bytes().unwrap();
+//     Ok(B256::from_slice(block_hash.0))
+// }
 
 pub async fn get_storage_proofs(
     slots: Vec<B256>,
