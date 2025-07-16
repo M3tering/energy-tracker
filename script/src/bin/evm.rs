@@ -63,11 +63,11 @@ async fn main() -> Result<()> {
     // Parse the command line arguments.
     let args = EVMArgs::parse();
 
-    std::env::set_var("SP1_PROVER", "cpu");
-    // std::env::set_var(
-    //     "NETWORK_PRIVATE_KEY",
-    //     "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e",
-    // );
+    std::env::set_var("SP1_PROVER", "network");
+    std::env::set_var(
+        "NETWORK_PRIVATE_KEY",
+        "3b62b0fb8da4fc79eff9236c50527cd8bb9cd7c264f1c838b105d4570aa0491e",
+    );
 
     #[derive(Deserialize, Debug)]
     struct SamplePayload(HashMap<String, Vec<M3terRawPayload>>);
@@ -76,11 +76,16 @@ async fn main() -> Result<()> {
     let reader = BufReader::new(file);
     let payloads: SamplePayload = serde_json::from_reader(reader).unwrap();
 
+    let mut trimmed_payloads = HashMap::<String, Vec<M3terRawPayload>>::new();
+
+    for (k, v) in payloads.0 {
+        trimmed_payloads.insert(k, v[0..100].to_vec());
+    }
+
     let previous_nonces = get_previous_values(U256::from(0)).await?;
     let previous_balances = get_previous_values(U256::from(1)).await?;
 
-    let mut slots: Vec<u64> = payloads
-        .0
+    let mut slots: Vec<u64> = trimmed_payloads
         .keys()
         .map(|key| {
             let m3ter_id: u64 = key.split('&').collect::<Vec<&str>>()[1]
@@ -104,7 +109,7 @@ async fn main() -> Result<()> {
 
     println!("Anchor Block: {}", anchor_block);
     let payload = Payload {
-        mempool: payloads.0,
+        mempool: trimmed_payloads,
         previous_nonces: previous_nonces.to_vec(),
         previous_balances: previous_balances.to_vec(),
         proofs: Some(ProofStruct {

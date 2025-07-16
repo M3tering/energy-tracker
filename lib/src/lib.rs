@@ -92,7 +92,7 @@ pub struct Payload {
     pub block_bytes: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct M3terRawPayload (
     [String; 2]
 );
