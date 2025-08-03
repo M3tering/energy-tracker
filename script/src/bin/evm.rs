@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
     let mut trimmed_payloads = HashMap::<String, Vec<M3terRawPayload>>::new();
 
     for (k, v) in payloads.0 {
-        trimmed_payloads.insert(k, v[0..100].to_vec());
+        trimmed_payloads.insert(k, v[0..2].to_vec());
     }
 
     let previous_nonces = get_previous_values(U256::from(0)).await?;
@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
     let mut slots: Vec<u64> = trimmed_payloads
         .keys()
         .map(|key| {
-            let m3ter_id: u64 = key.split('&').collect::<Vec<&str>>()[1]
+            let m3ter_id: u64 = key
                 .parse()
                 .expect("meter id not valid");
             m3ter_id

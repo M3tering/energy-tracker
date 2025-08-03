@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 mod util;
 use util::validate_signature;
 
-pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key};
+pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key, to_B256};
 
 sol! {
     #[derive(Serialize, Deserialize, Debug)]
@@ -75,7 +75,7 @@ where
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProofStruct {
     pub storage_hash: B256,
-    pub proofs: Vec<Vec<Bytes>>,
+    pub proofs: Vec<(U256, Vec<Bytes>)>,
     pub encoded_account: Vec<u8>,
     pub account_proof: Vec<Bytes>,
 }
@@ -94,19 +94,19 @@ pub struct Payload {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct M3terRawPayload (
-    [String; 2]
+    String
 );
 
 impl M3terRawPayload {
     fn to_m3ter_payloads(&self) -> M3terPayload {
-        let message = self.0[0].clone();
-        let signature = self.0[1].clone();
-        let payload = serde_json::from_str::<Vec<f64>>(&message)
-            .expect("Failed to parse M3terPayload from raw payload");    
-        let nonce = payload[0] as u64;
-        let energy = payload[payload.len() - 1];
+        let payload_bytes = hex::decode(&self.0).expect("Failed to decode hex payload");
+        let (message, signature) = self.0.split_at(16);
+        let nonce_bytes: [u8; 4] = payload_bytes[0..4].try_into().expect("Failed to get nonce bytes");
+        let energy_bytes: [u8; 4] = payload_bytes[4..8].try_into().expect("Failed to get energy bytes");
+        let nonce = u32::from_be_bytes(nonce_bytes) as u64;
+        let energy = u32::from_be_bytes(energy_bytes) as f64 / 1_000_000.0; 
 
-        M3terPayload::new(message, signature, nonce, energy)
+        M3terPayload::new(message.to_string(), signature.to_string(), nonce, energy)
     }
 }
 

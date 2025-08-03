@@ -73,6 +73,10 @@ pub fn verify_account_proof(
     alloy_trie::proof::verify_proof(state_root, address, Some(expected_value), &proof).is_ok()
 }
 
+pub fn to_B256(value: U256) -> B256 {
+    B256::from_slice(&value.to_be_bytes_vec())
+}
+
 pub fn to_keccak_hash(input: Vec<u8>) -> B256 {
     keccak256(input)
 }
@@ -84,17 +88,4 @@ pub fn calc_slot_key(key: U256) -> Option<U256> {
             .expect("invalid slot literal");
     
     key.checked_add(slot_literal)
-
-    // let mapping_slot = U256::from(0);
-    // let mut hasher = Keccak256::new();
-
-    // // Encode key as 32 bytes (big-endian)
-    // let key_bytes = key.to_be_bytes::<32>();
-    // hasher.update(key_bytes);
-
-    // // Encode mapping slot as 32 bytes (big-endian)
-    // let slot_bytes = mapping_slot.to_be_bytes::<32>();
-    // hasher.update(slot_bytes);
-
-    // hasher.finalize()
 }

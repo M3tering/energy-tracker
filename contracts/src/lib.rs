@@ -84,7 +84,7 @@ async fn get_provider() -> Result<impl Provider> {
 
 pub async fn get_storage_proofs(
     slots: Vec<B256>,
-) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<Vec<Bytes>>, u64)> {
+) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<(U256, Vec<Bytes>)>, u64)> {
     let provider = get_provider().await?;
     let anchor_block = provider.get_block_number().await?;
     
@@ -109,7 +109,7 @@ pub async fn get_storage_proofs(
     let storage_proofs = proof_at_block
         .storage_proof
         .iter()
-        .map(|value| value.proof.clone())
+        .map(|proof_struct| (proof_struct.value, proof_struct.proof.clone()))
         .collect();
 
     Ok((
