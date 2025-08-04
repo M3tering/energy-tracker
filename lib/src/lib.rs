@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 mod util;
 use util::validate_signature;
 
-pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key, to_b256};
+pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key, to_b256, destructure_payload};
 
 sol! {
     #[derive(Serialize, Deserialize, Debug)]
@@ -98,20 +98,14 @@ pub struct M3terRawPayload (
 );
 
 impl M3terRawPayload {
-    fn to_m3ter_payloads(&self) -> M3terPayload {
-        let payload_bytes = hex::decode(&self.0).expect("Failed to decode hex payload");
-        let (message, signature) = self.0.split_at(16);
-        let nonce_bytes: [u8; 4] = payload_bytes[0..4].try_into().expect("Failed to get nonce bytes");
-        let energy_bytes: [u8; 4] = payload_bytes[4..8].try_into().expect("Failed to get energy bytes");
-        let nonce = u32::from_be_bytes(nonce_bytes) as u64;
-        let energy = u32::from_be_bytes(energy_bytes) as u64; 
-
+    pub fn to_m3ter_payloads(&self) -> M3terPayload {
+        let (message, signature, nonce, energy) = util::destructure_payload(&self.0);
         M3terPayload::new(message.to_string(), signature.to_string(), nonce, energy)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct M3terPayload {
+pub struct M3terPayload {
     message: String,
     signature: String,
     nonce: u64,

@@ -1,13 +1,8 @@
 [workspace]
-members = [
-    "lib",
-    "program",
-    "script",
-    "contracts"
-]
+members = ["lib", "program", "script", "contracts", "node"]
 resolver = "2"
 
 [workspace.dependencies]
 alloy-sol-types = "1.0.0"
-alloy-primitives = { version = "1.2.1", features = ["serde"]}
+alloy-primitives = { version = "1.2.1", features = ["serde"] }
 serde = { version = "1.0.200", default-features = false, features = ["derive"] }

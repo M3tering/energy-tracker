@@ -68,6 +68,16 @@ pub fn verify_account_proof(
     alloy_trie::proof::verify_proof(state_root, address, Some(expected_value), &proof).is_ok()
 }
 
+pub fn destructure_payload(payload: &str) -> (&str, &str, u64, u64) {
+    let payload_bytes = hex::decode(payload).expect("Failed to decode hex payload");
+    let (message, signature) = payload.split_at(16);
+    let nonce_bytes: [u8; 4] = payload_bytes[0..4].try_into().expect("Failed to get nonce bytes");
+    let energy_bytes: [u8; 4] = payload_bytes[4..8].try_into().expect("Failed to get energy bytes");
+    let nonce = u32::from_be_bytes(nonce_bytes) as u64;
+    let energy = u32::from_be_bytes(energy_bytes) as u64; 
+    (message, signature, nonce, energy)
+}
+
 pub fn to_b256(value: U256) -> B256 {
     B256::from_slice(&value.to_be_bytes_vec())
 }
