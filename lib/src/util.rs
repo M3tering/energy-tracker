@@ -20,11 +20,6 @@ pub fn validate_signature(
     }
 }
 
-// pub fn _validate_unique_nonce(nonce: u128) -> bool {
-//     // Check if the nonce is unique (greater than 0)
-//     nonce > 0
-// }
-
 fn build_signature(raw_signature: &str) -> Option<Signature> {
     let signature = Signature::from_slice(&decode_hex(raw_signature));
     match signature {
@@ -73,7 +68,7 @@ pub fn verify_account_proof(
     alloy_trie::proof::verify_proof(state_root, address, Some(expected_value), &proof).is_ok()
 }
 
-pub fn to_B256(value: U256) -> B256 {
+pub fn to_b256(value: U256) -> B256 {
     B256::from_slice(&value.to_be_bytes_vec())
 }
 

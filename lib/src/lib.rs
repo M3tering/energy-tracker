@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 mod util;
 use util::validate_signature;
 
-pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key, to_B256};
+pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key, to_b256};
 
 sol! {
     #[derive(Serialize, Deserialize, Debug)]
@@ -104,7 +104,7 @@ impl M3terRawPayload {
         let nonce_bytes: [u8; 4] = payload_bytes[0..4].try_into().expect("Failed to get nonce bytes");
         let energy_bytes: [u8; 4] = payload_bytes[4..8].try_into().expect("Failed to get energy bytes");
         let nonce = u32::from_be_bytes(nonce_bytes) as u64;
-        let energy = u32::from_be_bytes(energy_bytes) as f64 / 1_000_000.0; 
+        let energy = u32::from_be_bytes(energy_bytes) as u64; 
 
         M3terPayload::new(message.to_string(), signature.to_string(), nonce, energy)
     }
@@ -115,11 +115,11 @@ struct M3terPayload {
     message: String,
     signature: String,
     nonce: u64,
-    energy: f64,
+    energy: u64,
 }
 
 impl M3terPayload {
-    pub fn new(message: String, signature: String, nonce: u64, energy: f64) -> Self {
+    pub fn new(message: String, signature: String, nonce: u64, energy: u64) -> Self {
         M3terPayload {
             message,
             signature,
@@ -194,16 +194,16 @@ pub fn track_energy(
     m3ter_payloads: &[M3terRawPayload],
     start_nonce: u64,
     (storage_hash, proof): (&B256, &Vec<Bytes>),
-) -> (f64, u64) {
+) -> (u64, u64) {
     if !m3ter.verify_public_key(storage_hash, proof) {
         println!(
             "encountered invalid public_key for m3ter {}",
             m3ter.m3ter_id
         );
-        return (0.0, start_nonce);
+        return (0, start_nonce);
     }
 
-    let mut energy_sum = 0.0;
+    let mut energy_sum = 0;
     let mut latest_nonce = start_nonce;
     for payload in m3ter_payloads.iter() {
         let payload = payload.to_m3ter_payloads();

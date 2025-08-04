@@ -2,9 +2,8 @@
 sp1_zkvm::entrypoint!(main);
 
 use energy_tracker_lib::{
-    get_state_root, to_B256, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload, PublicValuesStruct
+    get_state_root, to_b256, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload, PublicValuesStruct
 };
-use std::ops::Mul;
 
 pub fn main() {
     let payload = sp1_zkvm::io::read::<Payload>();
@@ -68,7 +67,7 @@ pub fn main() {
     } 
     for (m3ter_key, m3ter_payloads) in mempool {
         let m3ter_id = m3ter_key.parse::<usize>().unwrap();
-        let public_key = to_B256(proofs[m3ter_id].0).to_string();
+        let public_key = to_b256(proofs[m3ter_id].0).to_string();
         let m3ter = M3ter::new(m3ter_key, &public_key);
 
         let (start, end) = m3ter_position(m3ter_id);
@@ -97,7 +96,7 @@ pub fn main() {
             current_nonce,
             (&storage_hash, &proofs[m3ter_id].1),
         );
-        let energy_sum = (energy_sum.mul(10_f64.powi(7))) as u64 + current_balance;
+        let energy_sum = energy_sum + current_balance;
         println!(
             "Values after tracking = Energy Sum: {}, Latest Nonce: {}",
             energy_sum, latest_nonce
