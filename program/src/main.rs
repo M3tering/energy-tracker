@@ -10,8 +10,10 @@ pub fn main() {
     let address = "40a36C0eF29A49D1B1c1fA45fab63762f8FC423F";
 
     let mempool = &payload.mempool;
-    let previous_nonces = payload.previous_nonces;
-    let previous_balances = payload.previous_balances;
+    let initial_nonces = payload.previous_nonces;
+    let initial_balances = payload.previous_balances;
+    let mut previous_nonces = if initial_nonces.len() == 2 {vec![] } else { initial_nonces[1..].to_vec() };
+    let mut previous_balances = if initial_balances.len() == 2 {vec![] } else { initial_balances[1..].to_vec() };
 
     let (account_proof, encoded_account, storage_hash, proofs) = match payload.proofs {
         Some(value) => (
@@ -73,9 +75,10 @@ pub fn main() {
         let (start, end) = m3ter_position(m3ter_id);
         if start >= previous_nonces.len() || previous_nonces.len() < 6 {
             let padding_len = end - previous_nonces.len();
-            let padding = vec![0u8; padding_len];
-            new_nonces.extend(&padding);
-            new_balances.extend(padding);
+            previous_nonces.extend(vec![0u8; padding_len]);
+            previous_balances.extend(vec![0u8; padding_len]);
+            new_nonces.extend(vec![0u8; padding_len]);
+            new_balances.extend(vec![0u8; padding_len]);
         }
 
         println!(
@@ -126,12 +129,12 @@ pub fn main() {
     }
 
     if new_balances == previous_balances {
-        panic!("New balances matches previous balances")
+        panic!("New balances matches previous balances");
     }
 
     let block_hash = to_keccak_hash(block_bytes);
-    let previous_balances = to_keccak_hash(previous_balances);
-    let previous_nonces = to_keccak_hash(previous_nonces);
+    let previous_balances = to_keccak_hash(initial_balances);
+    let previous_nonces = to_keccak_hash(initial_nonces);
     let new_balances = new_balances.into();
     let new_nonces = new_nonces.into();
 

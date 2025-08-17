@@ -1,8 +1,13 @@
 [workspace]
-members = ["lib", "program", "script", "contracts", "node"]
+members = ["lib", "program",  "contracts", "node"]
+default-members = ["node"]
 resolver = "2"
 
 [workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
 alloy-sol-types = "1.0.0"
+alloy-rlp = "0.3.12"
 alloy-primitives = { version = "1.2.1", features = ["serde"] }
 serde = { version = "1.0.200", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+hex = "0.4.3"

@@ -1,14 +1,17 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use alloy_sol_types::sol;
 use alloy_primitives::{Bytes, B256, U256};
+use alloy_sol_types::sol;
 use alloy_trie::Nibbles;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 mod util;
 use util::validate_signature;
 
-pub use util::{to_keccak_hash, verify_account_proof, get_state_root, calc_slot_key, to_b256, destructure_payload};
+pub use util::{
+    calc_slot_key, destructure_payload, get_state_root, to_b256, to_keccak_hash,
+    verify_account_proof, extract_nonce
+};
 
 sol! {
     #[derive(Serialize, Deserialize, Debug)]
@@ -83,7 +86,7 @@ pub struct ProofStruct {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    pub mempool: HashMap<String, Vec<M3terRawPayload>>,
+    pub mempool: HashMap<String, Vec<M3terPayload>>,
     #[serde(deserialize_with = "deserialize_hex", serialize_with = "serialize_hex")]
     pub previous_nonces: Vec<u8>,
     #[serde(deserialize_with = "deserialize_hex", serialize_with = "serialize_hex")]
@@ -93,9 +96,7 @@ pub struct Payload {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct M3terRawPayload (
-    String
-);
+pub struct M3terRawPayload(String);
 
 impl M3terRawPayload {
     pub fn to_m3ter_payloads(&self) -> M3terPayload {
@@ -122,8 +123,8 @@ impl M3terPayload {
         }
     }
 
-    fn msg_to_vec(&self) -> Vec<u8> {
-        self.message.as_bytes().to_vec()
+    fn _msg_to_vec(&self) -> Vec<u8> {
+        hex::decode(self.message.clone()).expect("Failed to decode hex")
     }
 }
 
@@ -141,8 +142,8 @@ impl M3ter {
         }
     }
 
-    fn  validate_payload(&self, payload: &M3terPayload) -> bool {
-        match validate_signature(payload.msg_to_vec(), &self.public_key, &payload.signature) {
+    fn validate_payload(&self, payload: &M3terPayload) -> bool {
+        match validate_signature(&payload.message, &self.public_key, &payload.signature) {
             Some(is_valid) => is_valid,
             None => {
                 println!("Invalid signature for payload: {:?}", payload);
@@ -167,25 +168,21 @@ impl M3ter {
         let expected_value = U256::from_be_slice(&hex::decode(public_key).unwrap());
         println!("expected_value = {:?}", expected_value);
         let expected_value = alloy_rlp::encode(expected_value);
-        let result = alloy_trie::proof::verify_proof(
-            *storage_hash,
-            slot_key,
-            Some(expected_value),
-            proof,
-        );
+        let result =
+            alloy_trie::proof::verify_proof(*storage_hash, slot_key, Some(expected_value), proof);
         match result {
             Ok(()) => true,
             Err(err) => {
                 println!("Failed to verify proof: {:?}", err);
                 false
-            },
+            }
         }
     }
 }
 
 pub fn track_energy(
     m3ter: M3ter,
-    m3ter_payloads: &[M3terRawPayload],
+    m3ter_payloads: &[M3terPayload],
     start_nonce: u64,
     (storage_hash, proof): (&B256, &Vec<Bytes>),
 ) -> (u64, u64) {
@@ -200,14 +197,17 @@ pub fn track_energy(
     let mut energy_sum = 0;
     let mut latest_nonce = start_nonce;
     for payload in m3ter_payloads.iter() {
-        let payload = payload.to_m3ter_payloads();
-        if  latest_nonce != 0 && latest_nonce + 1 != payload.nonce {
-            println!("Invalid nonce: {} < {} for m3ter_id {}", &payload.nonce, &latest_nonce, &m3ter.m3ter_id);
+        // let payload = payload.to_m3ter_payloads();
+        if latest_nonce != 0 && latest_nonce + 1 != payload.nonce {
+            println!(
+                "Invalid nonce: {} < {} for m3ter_id {}",
+                &payload.nonce, &latest_nonce, &m3ter.m3ter_id
+            );
             break; // Nonce is not sequential or is less than the latest nonce
         }
-        if !m3ter.validate_payload(&payload) {
+        if !m3ter.validate_payload(payload) {
             println!("Invalid payload: {:?}", payload);
-            break
+            break;
         }
         energy_sum += payload.energy;
         latest_nonce = payload.nonce;

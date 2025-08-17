@@ -30,16 +30,16 @@ async fn main() -> Result<()> {
    let contract_address: Address = "0x397A5f7f3dBd538f23DE225B51f532c34448dA9B".parse()?;
    
    // Verification parameters
-   let program_vkey: FixedBytes<32> = hex!("00e64d74c60f66f2479dbf6cd8fe39a09ed90737a533660b2710bba732d85906").into();
+   let program_vkey: FixedBytes<32> = hex!("000abd9266caaa1025d27da6a98b16c1333de91e5b39f4d15c78e1fa6a164b54").into();
    
-   let public_values = Bytes::from(hex!("0600000000000000c3f5a83f712c2e42d9ddb2426abc01421f851b405839743f06000000000000004401000017110000e510000082090000de020000e00b00000600000000000000c3f5a83f712c2e42d9ddb2426abc01421f851b40c05d883f06000000000000004401000017110000e510000082090000de020000ea0b0000"));
+   let public_values = Bytes::from(hex!("0x21a64fea3bffd659d523c1b85ac28f75030f5503570ee7c1e1df942cce9d144054a8c0ab653c15bfb48b47fd011ba2b9617af01cb45cab344acd57c924d5679854a8c0ab653c15bfb48b47fd011ba2b9617af01cb45cab344acd57c924d56798000000f0eb89000000cadda0000000000002000000000002"));
    
-   let proof_bytes = Bytes::from(hex!("a4594c5910f0e82df1b833f70771d3c51860d9852578a551e91e2315960d71d49ac67e7c286e35d480b3abcc9cbdccbce4b420a854d1e3255bda58ddc447dc461492a77f0577a2acf6814b1bd3fba4eeac9ed9fb95b0cac97520fa4d8ee9176cddce980500199294f534132eef1f3e9ad395ddcaf1a6526f8fcfd50503cddfccd7ac764306477288f4c3d4fe92862a6fd0485578dfc6c1f8d1d7a9d08e3f05732fc8147e223e25b5ec49905e8088d22718b4b5c72410d757558e0dad0b4c96bd47d77e6724fc81e0d6cc33ffd8b39ce9d9d1bd3bc099dd7f7923766a67563b19afdf4ae014ad57e9f4b88c8cf5d09a3d3eb71aaadcd342579fd8e8d3b199cc8bed3406d0"));
+   let proof_bytes = Bytes::from(hex!("a4594c59190e557e0dd8ce1d0a9f4070407680e8dbb0ecee314e222eb1a53f1d92cf9d30170de137c2f93da050f3317232cd760071921f0d0f57c8a3b15806121b9bb899035c969d578a8eb240238592eba419b74ca239b5835c55e78960d101c94b2ac806381a8a8b1d45c6f7fd7e393b916bd5a4b1ad0faea2c28257a8dd93c27affbc047c0db8896d877c6ab00ba746aa63fab3b76a674ba6e85011a7c1862922d3781a402f08e5988eb220bbf9ca98704d8c8049b31643a2114750c15bccbd8541a9196ad7612f2b296b8de16670f952e89dab95affdbb9de767f97d4ac54a6f0ff326217073fba7e0b8c1d062dabc11a78feb5ccdc1a342cadb9ac3732cd1e83805"));
 
    // Set up the HTTP provider
    // Replace with your actual RPC URL
    let rpc_url = std::env::var("RPC_URL")
-       .unwrap_or_else(|_| "https://eth-mainnet.alchemyapi.io/v2/YOUR_API_KEY".to_string());
+       .unwrap_or_else(|_| "https://eth-sepolia.g.alchemy.com/v2/URjQnzNCUHumxPFL8VDoFBmpX4uqL6X8".to_string());
 
    println!("Using RPC URL: {}", rpc_url);
    

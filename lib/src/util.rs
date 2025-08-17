@@ -1,22 +1,30 @@
+use std::str::FromStr;
+
 use alloy_consensus::Header;
 use alloy_primitives::{keccak256, Bytes, B256, U256};
 use alloy_trie::Nibbles;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
 pub fn validate_signature(
-    message_hash: Vec<u8>,
+    message_hash: &str,
     public_key: &str,
     signature_str: &str,
 ) -> Option<bool> {
+    println!(
+        "Validating signature for message: {}, public key: {}, signature: {}",
+        message_hash, public_key, signature_str
+    );
     // Decode the signature and public key using ed25519-dalek
     let signature = build_signature(signature_str)?;
     let verify_key = build_verifying_key(public_key)?;
 
     // Verify the signature using ed25519-dalek
-    if verify_key.verify(&message_hash, &signature).is_ok() {
-        Some(true)
-    } else {
-        None
+    match verify_key.verify(&hex::decode(message_hash).unwrap(), &signature) {
+        Ok(()) => Some(true),
+        Err(err) => {
+            println!("Signature verification failed for public key: {} with err {:?}", public_key, err);
+            None
+        }
     }
 }
 
@@ -32,9 +40,8 @@ fn build_signature(raw_signature: &str) -> Option<Signature> {
 }
 
 fn build_verifying_key(raw_public_key: &str) -> Option<VerifyingKey> {
-    let mut raw_hex = [0u8; 32];
-    let _ = hex::decode_to_slice(raw_public_key, &mut raw_hex as &mut [u8]);
-    let verifying_key = VerifyingKey::from_bytes(&raw_hex);
+    let key = B256::from_str(raw_public_key.strip_prefix("0x").unwrap()).unwrap();
+    let verifying_key = VerifyingKey::from_bytes(&key);
     match verifying_key {
         Ok(verifier) => Some(verifier),
         Err(err) => {
@@ -76,6 +83,12 @@ pub fn destructure_payload(payload: &str) -> (&str, &str, u64, u64) {
     let nonce = u32::from_be_bytes(nonce_bytes) as u64;
     let energy = u32::from_be_bytes(energy_bytes) as u64; 
     (message, signature, nonce, energy)
+}
+
+pub fn extract_nonce(payload: &str) -> i64 {
+    let payload_bytes = hex::decode(payload).expect("Failed to decode hex payload");
+    let nonce_bytes: [u8; 4] = payload_bytes[0..4].try_into().expect("Failed to get nonce bytes");
+    i32::from_be_bytes(nonce_bytes) as i64
 }
 
 pub fn to_b256(value: U256) -> B256 {
