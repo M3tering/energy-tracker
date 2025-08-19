@@ -1,8 +1,11 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
+use core::panic;
+
 use energy_tracker_lib::{
-    get_state_root, to_b256, to_keccak_hash, track_energy, verify_account_proof, M3ter, Payload, PublicValuesStruct
+    calc_slot_key, get_state_root, to_b256, to_keccak_hash, to_u256, track_energy,
+    verify_account_proof, M3ter, Payload, PublicValuesStruct,
 };
 
 pub fn main() {
@@ -12,8 +15,17 @@ pub fn main() {
     let mempool = &payload.mempool;
     let initial_nonces = payload.previous_nonces;
     let initial_balances = payload.previous_balances;
-    let mut previous_nonces = if initial_nonces.len() == 2 {vec![] } else { initial_nonces[1..].to_vec() };
-    let mut previous_balances = if initial_balances.len() == 2 {vec![] } else { initial_balances[1..].to_vec() };
+
+    let mut previous_nonces = if initial_nonces.len() == 2 {
+        vec![]
+    } else {
+        initial_nonces[0..].to_vec()
+    };
+    let mut previous_balances = if initial_balances.len() == 2 {
+        vec![]
+    } else {
+        initial_balances[0..].to_vec()
+    };
 
     let (account_proof, encoded_account, storage_hash, proofs) = match payload.proofs {
         Some(value) => (
@@ -50,14 +62,14 @@ pub fn main() {
         u64::from_be_bytes(buf)
     };
 
-    let encode_slice = |value: u64| -> [u8; 6] {
+    let encode_slice = |value: u64| -> ([u8; 6], bool) {
         let bytes: [u8; 8] = value.to_be_bytes(); // [u8; 8]
         if bytes[..2][0] + bytes[..2][1] > 0 {
-            return [0; 6];
+            return ([0; 6], false);
         }
 
         let six_bytes = &bytes[2..8]; // Take the last 6 bytes (big-endian)
-        six_bytes.try_into().unwrap()
+        (six_bytes.try_into().unwrap(), true)
     };
 
     if previous_nonces.len() != previous_balances.len() {
@@ -66,10 +78,17 @@ pub fn main() {
             previous_nonces.len(),
             previous_balances.len()
         )
-    } 
+    }
+    println!("proofs {:?}", proofs);
     for (m3ter_key, m3ter_payloads) in mempool {
         let m3ter_id = m3ter_key.parse::<usize>().unwrap();
-        let public_key = to_b256(proofs[m3ter_id].0).to_string();
+        let (public_key, proof) = match proofs.get(dbg!(&to_b256(
+            calc_slot_key(to_u256(m3ter_id as u64)).unwrap()
+        ))) {
+            Some(value) => value,
+            None => panic!("failed to get proof for m3ter {}", m3ter_id),
+        };
+        let public_key = to_b256(*public_key).to_string();
         let m3ter = M3ter::new(m3ter_key, &public_key);
 
         let (start, end) = m3ter_position(m3ter_id);
@@ -93,20 +112,16 @@ pub fn main() {
             "Decoded values = Current Nonce: {}, Current Balance: {}",
             current_nonce, current_balance
         );
-        let (energy_sum, latest_nonce) = track_energy(
-            m3ter,
-            m3ter_payloads,
-            current_nonce,
-            (&storage_hash, &proofs[m3ter_id].1),
-        );
+        let (energy_sum, latest_nonce) =
+            track_energy(m3ter, m3ter_payloads, current_nonce, current_balance == 0u64, (&storage_hash, proof));
         let energy_sum = energy_sum + current_balance;
         println!(
             "Values after tracking = Energy Sum: {}, Latest Nonce: {}",
             energy_sum, latest_nonce
         );
-        let nonce_encoded = encode_slice(latest_nonce);
-        let balance_encoded = encode_slice(energy_sum);
-        if nonce_encoded == [0u8; 6] || balance_encoded == [0u8; 6] {
+        let (nonce_encoded, nonce_status) = encode_slice(latest_nonce);
+        let (balance_encoded, status) = encode_slice(energy_sum);
+        if !nonce_status || !status {
             println!(
                 "Nonce or balance exceeds the 6-byte limit for m3ter ID: {}",
                 m3ter_id

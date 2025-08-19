@@ -19,7 +19,7 @@ use energy_tracker_lib::{
     Payload, ProofStruct, PublicValuesStruct, calc_slot_key, destructure_payload, extract_nonce,
 };
 use energy_tracker_verifier::{
-    commit_state, get_block_rpl_bytes, get_previous_values, get_provider, get_storage_proofs
+    commit_state, get_block_rpl_bytes, get_previous_values, get_provider, get_storage_proofs,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -52,7 +52,7 @@ struct M3terPayloadInbound {
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
-#[derive(Queryable, QueryableByName, Serialize, Debug)]
+#[derive(Queryable, QueryableByName, Insertable, Serialize, Debug)]
 struct M3terPayload {
     id: i32,
     m3ter_id: i64,
@@ -60,6 +60,7 @@ struct M3terPayload {
     signature: String,
     nonce: i64,
     energy: i64,
+    is_verified: bool,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -70,6 +71,7 @@ struct NewM3terPayload {
     signature: String,
     nonce: i64,
     energy: i64,
+    is_verified: bool,
 }
 
 table! {
@@ -79,7 +81,8 @@ table! {
         message -> VarChar,
         signature -> VarChar,
         nonce -> Int8,
-        energy -> Int8
+        energy -> Int8,
+        is_verified -> Bool,
     }
 }
 
@@ -100,9 +103,9 @@ async fn main() {
         .route("/payload", post(payload_handler))
         .route("/batch-payloads", post(batch_payload_handler))
         .route("/run_prover", get(run_prover_handler))
+        .route("/vkey", get(get_prover_vkey))
         .with_state(db_state);
 
-    // Run the server on localhost:3000
     println!("Starting server on http://localhost:8080");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await
@@ -112,7 +115,7 @@ async fn main() {
 
 fn establish_db_connection() -> DbPool {
     let manager = ConnectionManager::<PgConnection>::new(
-        "postgres://postgres:postgres@localhost:5432/m3tering-db",
+        "postgres://aquinas:aquinas@localhost:5432/m3tering-db",
     );
     r2d2::Pool::builder()
         .build(manager)
@@ -154,6 +157,7 @@ async fn payload_handler(
         signature: signature.to_string(),
         nonce: nonce as i64,
         energy: energy as i64,
+        is_verified: false
     };
     println!("Inserting payload");
     let inserted: M3terPayload = diesel::insert_into(m3ter_payloads::table)
@@ -186,6 +190,7 @@ async fn batch_payload_handler(
                 signature: signature.to_string(),
                 nonce: nonce as i64,
                 energy: energy as i64,
+                is_verified: false
             }
         })
         .collect::<Vec<NewM3terPayload>>();
@@ -222,44 +227,42 @@ async fn run_prover_handler(
     let proving_payload = sql_query(
         "SELECT *
         FROM m3ter_payloads
+        WHERE is_verified = FALSE 
         ORDER BY m3ter_id, nonce ASC",
     )
     .load::<M3terPayload>(&mut connection)
     .expect("Failed to load payloads");
 
     let mut grouped: HashMap<String, Vec<energy_tracker_lib::M3terPayload>> = HashMap::new();
-    for payload in proving_payload {
+    for payload in &proving_payload {
         grouped
             .entry(payload.m3ter_id.to_string())
             .or_default()
             .push(energy_tracker_lib::M3terPayload::new(
-                payload.message,
-                payload.signature,
+                payload.message.clone(),
+                payload.signature.clone(),
                 payload.nonce as u64,
                 payload.energy as u64,
             ));
     }
 
-    let previous_nonces = dbg!(get_previous_values(&provider, U256::from(0)).await.unwrap());
-    let previous_balances = dbg!(get_previous_values(&provider, U256::from(1)).await.unwrap());
+    let previous_nonces = get_previous_values(&provider, U256::from(1)).await.unwrap();
+    let previous_balances = get_previous_values(&provider, U256::from(0)).await.unwrap();
 
-    let mut slots = grouped
+    let slot_keys = grouped
         .keys()
         .map(|key| {
             let m3ter_id: u64 = key.parse().expect("meter id not valid");
             m3ter_id
         })
-        .collect::<Vec<u64>>();
-    slots.sort();
-
-    let slot_keys = slots
-        .iter()
-        .map(|m3ter_id| calc_slot_key(U256::from(*m3ter_id)).unwrap())
+        .map(|m3ter_id| calc_slot_key(U256::from(m3ter_id)).unwrap())
         .map(|slot_key| B256::from_slice(&slot_key.to_be_bytes_vec()))
         .collect();
 
     let (account_proof, encoded_account, storage_hash, proofs, anchor_block) =
         get_storage_proofs(&provider, slot_keys).await.unwrap();
+
+        println!("{:?}", proofs);
 
     let block_bytes = get_block_rpl_bytes(&provider, anchor_block).await.unwrap();
 
@@ -267,8 +270,8 @@ async fn run_prover_handler(
     println!("Anchor Block: {}", anchor_block);
     let payload = Payload {
         mempool: grouped,
-        previous_nonces: previous_nonces.to_vec(),
-        previous_balances: previous_balances.to_vec(),
+        previous_nonces: previous_nonces.into(),
+        previous_balances: previous_balances.into(),
         proofs: Some(ProofStruct {
             account_proof,
             encoded_account,
@@ -283,9 +286,10 @@ async fn run_prover_handler(
     let rpc_url = env::var("NETWORK_RPC_URL").expect("RPC_URL not set in .env");
     stdin.write(&payload);
     let prover_client = ProverClient::builder()
-        .network()
-        .private_key(&private_key)
-        .rpc_url(&rpc_url)
+        // .network()
+        // .private_key(&private_key)
+        // .rpc_url(&rpc_url)
+        .cpu()
         .build();
 
     let (pk, vk) = prover_client.setup(ENERGY_TRACKER_ELF);
@@ -307,7 +311,11 @@ async fn run_prover_handler(
         &proof_fixture.new_balances,
         &proof_fixture.new_nonces,
         &proof_fixture.proof,
-    ).await.expect("msg: Failed to commit state");
+    )
+    .await
+    .expect("msg: Failed to commit state");
+
+    update_payload(&mut connection, proving_payload).await;
     Json(json!({
         "code": 200,
         "success": true,
@@ -316,27 +324,49 @@ async fn run_prover_handler(
     }))
 }
 
+async fn get_prover_vkey() -> Json<serde_json::Value> {
+    let prover = ProverClient::builder().cpu().build();
+    let (_, vk) = prover.setup(ENERGY_TRACKER_ELF);
+    Json(json!({
+        "vkey": vk.bytes32()
+    }))
+}
+
+async fn update_payload(
+    connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    payloads: Vec<M3terPayload>
+) {
+    use diesel::prelude::*;
+    use self::m3ter_payloads::dsl::*;
+
+    diesel::update(m3ter_payloads.filter(id.eq_any(payloads.iter().map(|p| p.id))))
+        .set(is_verified.eq(true))
+        .execute(connection)
+        .expect("Failed to update payloads");
+    println!("Updated {} payloads to verified", payloads.len());
+}
+
 fn is_unique_nonce(
     connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
-    _m3ter_id: i64,
+    i_m3ter_id: i64,
     i_nonce: i64,
 ) -> bool {
     use self::m3ter_payloads::dsl::*;
     use diesel::prelude::*;
 
     match m3ter_payloads
-        .filter(nonce.eq(i_nonce))
+        .filter(m3ter_id.eq(i_m3ter_id).and(nonce.eq(i_nonce)))
         .first::<M3terPayload>(connection)
     {
         Ok(_) => {
             println!(
                 "Nonce {} for m3ter {} already exists in the database",
-                i_nonce, _m3ter_id
+                i_nonce, i_m3ter_id
             );
             false
         }
         Err(_) => {
-            println!("Nonce {} for m3ter {} is unique", i_nonce, _m3ter_id);
+            println!("Nonce {} for m3ter {} is unique", i_nonce, i_m3ter_id);
             true
         }
     }

@@ -95,6 +95,10 @@ pub fn to_b256(value: U256) -> B256 {
     B256::from_slice(&value.to_be_bytes_vec())
 }
 
+pub fn to_u256(value: u64) -> U256 {
+    U256::from(value)
+}
+
 pub fn to_keccak_hash(input: Vec<u8>) -> B256 {
     keccak256(input)
 }

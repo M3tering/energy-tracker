@@ -1,11 +1,7 @@
+use std::collections::HashMap;
+
 use alloy::{
-    dyn_abi::DynSolValue,
-    eips::BlockNumberOrTag,
-    hex,
-    json_abi::JsonAbi,
-    primitives::{Address, Bytes, B256, U256},
-    providers::{Provider, ProviderBuilder},
-    signers::{local::PrivateKeySigner},
+    dyn_abi::DynSolValue, eips::BlockNumberOrTag, hex, json_abi::JsonAbi, primitives::{Address, Bytes, B256, U256}, providers::{Provider, ProviderBuilder}, signers::local::PrivateKeySigner
 };
 
 use alloy_contract::Interface;
@@ -21,7 +17,7 @@ pub struct Account {
 }
 
 fn get_rollup_address() -> Address {
-    "0x86D332A14d204DA8e7F9C7448f4D7fCB79e0ED2F"
+    "0x3e9C2Cec262bce1E4Fd1E1d61455b7388C2cb649"
         .parse()
         .expect("Invalid address")
 }
@@ -121,9 +117,10 @@ pub async fn get_provider() -> Result<impl Provider> {
 pub async fn get_storage_proofs(
     provider: &impl Provider,
     slots: Vec<B256>,
-) -> Result<(Vec<Bytes>, Vec<u8>, B256, Vec<(U256, Vec<Bytes>)>, u64)> {
+) -> Result<(Vec<Bytes>, Vec<u8>, B256, HashMap<B256, (U256, Vec<Bytes>)>, u64)> {
     let anchor_block = provider.get_block_number().await?;
 
+    println!("slots {:?}", slots);
     let proof = provider.get_proof(get_m3ter_address(), slots);
 
     println!("geting storage_proofs at block = {:?}", anchor_block);
@@ -142,12 +139,12 @@ pub async fn get_storage_proofs(
     };
 
     let encoded_account = encode(account);
-
-    let storage_proofs = proof_at_block
-        .storage_proof
-        .iter()
-        .map(|proof_struct| (proof_struct.value, proof_struct.proof.clone()))
-        .collect();
+    let mut storage_proofs: HashMap<B256, (U256, Vec<Bytes>)> = HashMap::new();
+    for proof in proof_at_block.storage_proof.iter() {
+        storage_proofs
+            .entry(proof.key.as_b256())
+            .insert_entry((proof.value, proof.proof.clone()));
+    }   
 
     Ok((
         proof_at_block.account_proof,

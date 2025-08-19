@@ -10,7 +10,7 @@ use util::validate_signature;
 
 pub use util::{
     calc_slot_key, destructure_payload, get_state_root, to_b256, to_keccak_hash,
-    verify_account_proof, extract_nonce
+    verify_account_proof, extract_nonce, to_u256
 };
 
 sol! {
@@ -41,8 +41,8 @@ impl PublicValuesStruct {
         let previous_nonces = B256::from_slice(&bytes[64..96]);
         let update_values = &bytes[96..];
         let split_point = update_values.len() / 2;
-        let new_balances = update_values[0..split_point].to_vec().into();
-        let new_nonces = update_values[split_point..].to_vec().into();
+        let new_balances = update_values[1..split_point].to_vec().into();
+        let new_nonces = update_values[(split_point + 1)..].to_vec().into();
 
         PublicValuesStruct {
             block_hash,
@@ -78,7 +78,7 @@ where
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProofStruct {
     pub storage_hash: B256,
-    pub proofs: Vec<(U256, Vec<Bytes>)>,
+    pub proofs: HashMap<B256, (U256, Vec<Bytes>)>,
     pub encoded_account: Vec<u8>,
     pub account_proof: Vec<Bytes>,
 }
@@ -184,6 +184,7 @@ pub fn track_energy(
     m3ter: M3ter,
     m3ter_payloads: &[M3terPayload],
     start_nonce: u64,
+    is_balance_zero: bool,
     (storage_hash, proof): (&B256, &Vec<Bytes>),
 ) -> (u64, u64) {
     if !m3ter.verify_public_key(storage_hash, proof) {
@@ -196,9 +197,10 @@ pub fn track_energy(
 
     let mut energy_sum = 0;
     let mut latest_nonce = start_nonce;
+    let mut is_balance_zero = is_balance_zero;
     for payload in m3ter_payloads.iter() {
         // let payload = payload.to_m3ter_payloads();
-        if latest_nonce != 0 && latest_nonce + 1 != payload.nonce {
+        if (latest_nonce == 0 && !is_balance_zero) && latest_nonce + 1 != payload.nonce {
             println!(
                 "Invalid nonce: {} < {} for m3ter_id {}",
                 &payload.nonce, &latest_nonce, &m3ter.m3ter_id
@@ -211,6 +213,7 @@ pub fn track_energy(
         }
         energy_sum += payload.energy;
         latest_nonce = payload.nonce;
+        is_balance_zero = energy_sum == 0;
         println!("State: energy {:?}, nonce {:?}", energy_sum, latest_nonce);
     }
 
